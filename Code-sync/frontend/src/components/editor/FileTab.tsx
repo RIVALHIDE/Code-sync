@@ -102,7 +102,7 @@ function FileTab() {
                     </span>
                 ))}
             </div>
-            <div className="flex items-center ml-2">
+            <div className="flex items-center ml-2 mr-36">
                 <VoiceButton />
             </div>
         </div>
