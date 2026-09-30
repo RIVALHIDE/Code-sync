@@ -25,7 +25,7 @@ import { createAutocompleteExtension } from "./autocomplete"
 
 function Editor() {
     const { users, currentUser } = useAppContext()
-    const { activeFile, setActiveFile } = useFileSystem()
+    const { activeFile, setActiveFile, editorViewRef } = useFileSystem()
     const { theme, language, fontSize, enableLinting } = useSettings()
     const { socket } = useSocket()
     const { viewHeight } = useResponsive()
@@ -150,7 +150,13 @@ function Editor() {
 
     return (
         <CodeMirror
-            ref={editorRef}
+            ref={(cm) => {
+                editorRef.current = cm
+                // Store editor view in context for access by other components (e.g., VoiceButton)
+                if (cm?.view && editorViewRef) {
+                    editorViewRef.current = cm.view
+                }
+            }}
             theme={editorThemes[theme]}
             onChange={onCodeChange}
             value={activeFile?.content}
