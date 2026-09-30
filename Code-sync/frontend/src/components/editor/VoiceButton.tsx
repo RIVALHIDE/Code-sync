@@ -84,7 +84,7 @@ function VoiceButton() {
         }
         if (actions.includes("REDO")) {
             // Note: redo could be implemented if needed
-            toast.info("Redo not yet implemented")
+            toast("Redo not yet implemented")
         }
     }
 
