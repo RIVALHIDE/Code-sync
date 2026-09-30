@@ -1,3 +1,6 @@
+import { EditorView } from "@codemirror/view"
+import { RefObject } from "react"
+
 type Id = string
 type FileName = string
 type FileContent = string
@@ -29,6 +32,8 @@ interface FileContext {
     renameFile: (fileId: Id, newName: FileName) => boolean
     deleteFile: (fileId: Id) => void
     downloadFilesAndFolders: () => void
+    // Editor view ref for accessing CodeMirror instance
+    editorViewRef: RefObject<EditorView | null>
 }
 
 export { FileSystemItem, FileContent, FileContext, Id, FileName }

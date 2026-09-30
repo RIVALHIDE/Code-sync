@@ -13,6 +13,7 @@ import {
     initialFileStructure,
     isFileExist,
 } from "@/utils/file"
+import { EditorView } from "@codemirror/view"
 import { saveAs } from "file-saver"
 import JSZip from "jszip"
 import {
@@ -21,6 +22,7 @@ import {
     useCallback,
     useContext,
     useEffect,
+    useRef,
     useState,
 } from "react"
 import { toast } from "react-hot-toast"
@@ -52,6 +54,9 @@ function FileContextProvider({ children }: { children: ReactNode }) {
     const [activeFile, setActiveFile] = useState<FileSystemItem | null>(
         openFiles[0],
     )
+
+    // Editor view ref for accessing CodeMirror instance from other components (e.g., VoiceButton)
+    const editorViewRef = useRef<EditorView | null>(null)
 
     // Function to toggle the isOpen property of a directory (Directory Open/Close)
     const toggleDirectory = (dirId: Id) => {
@@ -799,6 +804,7 @@ function FileContextProvider({ children }: { children: ReactNode }) {
                 renameFile,
                 deleteFile,
                 downloadFilesAndFolders,
+                editorViewRef,
             }}
         >
             {children}
