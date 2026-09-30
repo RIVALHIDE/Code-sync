@@ -302,6 +302,49 @@ io.on("connection", (socket) => {
 		})
 	})
 
+	// ── Collaborative AI Prompt Engineering ──────────────────────────────────
+	socket.on(SocketEvent.CO_PROMPT_UPDATE, ({ text }) => {
+		const roomId = getRoomId(socket.id)
+		if (!roomId) return
+		socket.broadcast.to(roomId).emit(SocketEvent.CO_PROMPT_UPDATE, { text })
+	})
+
+	socket.on(SocketEvent.CO_PROMPT_CURSOR, (cursor) => {
+		const roomId = getRoomId(socket.id)
+		if (!roomId) return
+		socket.broadcast.to(roomId).emit(SocketEvent.CO_PROMPT_CURSOR, cursor)
+	})
+
+	socket.on(SocketEvent.CO_PROMPT_LINK_CODE, ({ block }) => {
+		const roomId = getRoomId(socket.id)
+		if (!roomId) return
+		socket.broadcast.to(roomId).emit(SocketEvent.CO_PROMPT_LINK_CODE, { block })
+	})
+
+	socket.on(SocketEvent.CO_PROMPT_UNLINK_CODE, ({ id }) => {
+		const roomId = getRoomId(socket.id)
+		if (!roomId) return
+		socket.broadcast.to(roomId).emit(SocketEvent.CO_PROMPT_UNLINK_CODE, { id })
+	})
+
+	socket.on(SocketEvent.CO_PROMPT_SUBMIT, ({ submittedBy }) => {
+		const roomId = getRoomId(socket.id)
+		if (!roomId) return
+		socket.broadcast.to(roomId).emit(SocketEvent.CO_PROMPT_SUBMIT, { submittedBy })
+	})
+
+	socket.on(SocketEvent.CO_PROMPT_RESPONSE, ({ response, entry }) => {
+		const roomId = getRoomId(socket.id)
+		if (!roomId) return
+		socket.broadcast.to(roomId).emit(SocketEvent.CO_PROMPT_RESPONSE, { response, entry })
+	})
+
+	socket.on(SocketEvent.CO_PROMPT_CLEAR, () => {
+		const roomId = getRoomId(socket.id)
+		if (!roomId) return
+		socket.broadcast.to(roomId).emit(SocketEvent.CO_PROMPT_CLEAR)
+	})
+
 	// Handle WebRTC video call signaling
 	socket.on(SocketEvent.VIDEO_CALL_USER_JOINED, ({ username }) => {
 		const roomId = getRoomId(socket.id)
@@ -410,32 +453,111 @@ app.get("/", (req: Request, res: Response) => {
 	res.sendFile(path.join(__dirname, "..", "public", "index.html"))
 })
 
-// AI proxy — forwards chat requests to Pollinations /openai endpoint
-// Avoids browser-side Turnstile restrictions
+// AI proxy — Gemini primary, Pollinations fallback
 app.post("/api/ai/chat", async (req: Request, res: Response) => {
 	try {
-		const { messages, model = "openai-fast" } = req.body
+		const { messages } = req.body
 		if (!messages || !Array.isArray(messages)) {
 			res.status(400).json({ error: "messages array is required" })
 			return
 		}
 
-		const response = await fetch("https://text.pollinations.ai/openai", {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ model, messages }),
-		})
+		const GROQ_API_KEY = process.env.GROQ_API_KEY
 
-		if (!response.ok) {
-			const errText = await response.text()
-			console.error("Pollinations error:", errText)
-			res.status(response.status).json({ error: errText })
-			return
+		// ── Primary: Groq (free tier, fast, reliable) ─────────────────────────
+		if (GROQ_API_KEY) {
+			try {
+				const controller = new AbortController()
+				const timer = setTimeout(() => controller.abort(), 20000)
+				let groqRes: globalThis.Response
+				try {
+					groqRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+						method: "POST",
+						headers: {
+							"Content-Type": "application/json",
+							"Authorization": `Bearer ${GROQ_API_KEY}`,
+						},
+						body: JSON.stringify({
+							model: "openai/gpt-oss-20b",
+							messages,
+							temperature: 0.7,
+							max_tokens: 2048,
+						}),
+						signal: controller.signal,
+					})
+				} finally {
+					clearTimeout(timer)
+				}
+
+				if (groqRes.ok) {
+					const data = await groqRes.json() as any
+					const content = data?.choices?.[0]?.message?.content ?? ""
+					res.json({ content })
+					return
+				} else {
+					const errText = await groqRes.text()
+					console.error("Groq error, falling back to Pollinations:", errText)
+				}
+			} catch (groqErr) {
+				console.error("Groq request failed, falling back to Pollinations:", groqErr)
+			}
 		}
 
-		const data = await response.json() as any
-		const content = data?.choices?.[0]?.message?.content ?? ""
-		res.json({ content })
+		// ── Fallback: Pollinations (strip system role — it causes 500s) ────────
+		// Pollinations' anonymous endpoint doesn't support the system role.
+		// Fold any system message into the first user message as a prefix.
+		const pollinationsMessages = (() => {
+			const result: Array<{ role: string; content: string }> = []
+			let pendingSystem = ""
+			for (const msg of messages) {
+				if (msg.role === "system") {
+					pendingSystem = msg.content
+				} else if (pendingSystem && msg.role === "user") {
+					result.push({ role: "user", content: `${pendingSystem}\n\n${msg.content}` })
+					pendingSystem = ""
+				} else {
+					result.push(msg)
+				}
+			}
+			return result
+		})()
+
+		let lastError = ""
+		for (let attempt = 1; attempt <= 3; attempt++) {
+			try {
+				const controller = new AbortController()
+				const timer = setTimeout(() => controller.abort(), 15000)
+				let response: globalThis.Response
+				try {
+					response = await fetch("https://text.pollinations.ai/openai", {
+						method: "POST",
+						headers: { "Content-Type": "application/json" },
+						body: JSON.stringify({ model: "openai-fast", messages: pollinationsMessages }),
+						signal: controller.signal,
+					})
+				} finally {
+					clearTimeout(timer)
+				}
+
+				if (!response.ok) {
+					lastError = await response.text()
+					console.error(`Pollinations attempt ${attempt} failed:`, lastError)
+					if (attempt < 3) await new Promise((r) => setTimeout(r, 1000 * attempt))
+					continue
+				}
+
+				const data = await response.json() as any
+				const content = data?.choices?.[0]?.message?.content ?? ""
+				res.json({ content })
+				return
+			} catch (fetchErr: any) {
+				lastError = fetchErr?.message ?? String(fetchErr)
+				console.error(`Pollinations attempt ${attempt} error:`, lastError)
+				if (attempt < 3) await new Promise((r) => setTimeout(r, 1000 * attempt))
+			}
+		}
+
+		res.status(502).json({ error: `AI service unavailable: ${lastError}` })
 	} catch (err) {
 		console.error("AI proxy error:", err)
 		res.status(500).json({ error: "Failed to contact AI service" })

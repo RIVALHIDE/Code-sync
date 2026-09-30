@@ -7,6 +7,7 @@ const instance: AxiosInstance = axios.create({
     headers: {
         "Content-Type": "application/json",
     },
+    timeout: 70000, // 70s — enough for 3 Pollinations attempts (15s each + delays)
 })
 
 /**

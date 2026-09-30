@@ -81,6 +81,10 @@ function Sidebar() {
                     icon={viewIcons[VIEWS.RECORDINGS]}
                 />
                 <SidebarButton
+                    viewName={VIEWS.CO_PROMPT}
+                    icon={viewIcons[VIEWS.CO_PROMPT]}
+                />
+                <SidebarButton
                     viewName={VIEWS.SETTINGS}
                     icon={viewIcons[VIEWS.SETTINGS]}
                 />

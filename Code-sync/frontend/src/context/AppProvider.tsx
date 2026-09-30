@@ -10,6 +10,7 @@ import { CopilotContextProvider } from "./CopilotContext.js"
 import { VideoCallContextProvider } from "./VideoCallContext"
 import { PedagogicalAIContextProvider } from "./PedagogicalAIContext"
 import { RecordingContextProvider } from "./RecordingContext"
+import { CoPromptContextProvider } from "./CoPromptContext"
 
 function AppProvider({ children }: { children: ReactNode }) {
     return (
@@ -22,11 +23,13 @@ function AppProvider({ children }: { children: ReactNode }) {
                                 <RunCodeContextProvider>
                                     <PedagogicalAIContextProvider>
                                         <RecordingContextProvider>
-                                            <ChatContextProvider>
-                                                <VideoCallContextProvider>
-                                                    {children}
-                                                </VideoCallContextProvider>
-                                            </ChatContextProvider>
+                                            <CoPromptContextProvider>
+                                                <ChatContextProvider>
+                                                    <VideoCallContextProvider>
+                                                        {children}
+                                                    </VideoCallContextProvider>
+                                                </ChatContextProvider>
+                                            </CoPromptContextProvider>
                                         </RecordingContextProvider>
                                     </PedagogicalAIContextProvider>
                                 </RunCodeContextProvider>

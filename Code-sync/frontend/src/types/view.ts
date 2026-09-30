@@ -7,6 +7,7 @@ enum VIEWS {
     SETTINGS = "SETTINGS",
     VIDEO_CALL = "VIDEO_CALL",
     RECORDINGS = "RECORDINGS",
+    CO_PROMPT = "CO_PROMPT",
 }
 
 interface ViewContext {
