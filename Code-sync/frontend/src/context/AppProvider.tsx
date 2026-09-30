@@ -7,6 +7,7 @@ import { SettingContextProvider } from "./SettingContext.jsx"
 import { SocketProvider } from "./SocketContext.jsx"
 import { ViewContextProvider } from "./ViewContext.js"
 import { CopilotContextProvider } from "./CopilotContext.js"
+import { VideoCallContextProvider } from "./VideoCallContext"
 
 function AppProvider({ children }: { children: ReactNode }) {
     return (
@@ -18,7 +19,9 @@ function AppProvider({ children }: { children: ReactNode }) {
                             <CopilotContextProvider>
                                 <RunCodeContextProvider>
                                     <ChatContextProvider>
-                                        {children}
+                                        <VideoCallContextProvider>
+                                            {children}
+                                        </VideoCallContextProvider>
                                     </ChatContextProvider>
                                 </RunCodeContextProvider>
                             </CopilotContextProvider>

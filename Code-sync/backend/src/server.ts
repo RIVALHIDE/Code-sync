@@ -28,6 +28,9 @@ const io = new Server(server, {
 
 let userSocketMap: User[] = []
 
+// Track users currently in video calls: Map<roomId, Set<socketId>>
+let activeCallParticipants: Map<string, Set<string>> = new Map()
+
 // Function to get all users in a room
 function getUsersInRoom(roomId: string): User[] {
 	return userSocketMap.filter((user) => user.roomId == roomId)
@@ -87,6 +90,21 @@ io.on("connection", (socket) => {
 		const user = getUserBySocketId(socket.id)
 		if (!user) return
 		const roomId = user.roomId
+
+		// Clean up video call participation
+		const callParticipants = activeCallParticipants.get(roomId)
+		if (callParticipants) {
+			callParticipants.delete(socket.id)
+			if (callParticipants.size === 0) {
+				activeCallParticipants.delete(roomId)
+			} else {
+				// Notify others this user left the call
+				socket.broadcast.to(roomId).emit(SocketEvent.VIDEO_CALL_USER_LEFT, {
+					socketId: socket.id,
+				})
+			}
+		}
+
 		socket.broadcast
 			.to(roomId)
 			.emit(SocketEvent.USER_DISCONNECTED, { user })
@@ -281,6 +299,106 @@ io.on("connection", (socket) => {
 		if (!roomId) return
 		socket.broadcast.to(roomId).emit(SocketEvent.DRAWING_UPDATE, {
 			snapshot,
+		})
+	})
+
+	// Handle WebRTC video call signaling
+	socket.on(SocketEvent.VIDEO_CALL_USER_JOINED, ({ username }) => {
+		const roomId = getRoomId(socket.id)
+		if (!roomId) return
+
+		// Add to active call participants
+		if (!activeCallParticipants.has(roomId)) {
+			activeCallParticipants.set(roomId, new Set())
+		}
+		activeCallParticipants.get(roomId)!.add(socket.id)
+
+		// Get list of existing participants in the call
+		const existingParticipants = Array.from(
+			activeCallParticipants.get(roomId) || []
+		)
+			.filter((id) => id !== socket.id)
+			.map((id) => {
+				const user = getUserBySocketId(id)
+				return user ? { socketId: id, username: user.username } : null
+			})
+			.filter((p) => p !== null)
+
+		// Send existing participants to the new joiner
+		if (existingParticipants.length > 0) {
+			io.to(socket.id).emit(
+				SocketEvent.VIDEO_CALL_PARTICIPANTS_LIST,
+				{ participants: existingParticipants }
+			)
+		}
+
+		// Notify others that this user joined
+		socket.broadcast.to(roomId).emit(SocketEvent.VIDEO_CALL_USER_JOINED, {
+			socketId: socket.id,
+			username,
+		})
+	})
+
+	socket.on(SocketEvent.VIDEO_CALL_OFFER, ({ targetSocketId, offer }) => {
+		const user = getUserBySocketId(socket.id)
+		if (!user) return
+		io.to(targetSocketId).emit(SocketEvent.VIDEO_CALL_OFFER, {
+			senderSocketId: socket.id,
+			senderUsername: user.username,
+			offer,
+		})
+	})
+
+	socket.on(SocketEvent.VIDEO_CALL_ANSWER, ({ targetSocketId, answer }) => {
+		io.to(targetSocketId).emit(SocketEvent.VIDEO_CALL_ANSWER, {
+			senderSocketId: socket.id,
+			answer,
+		})
+	})
+
+	socket.on(
+		SocketEvent.VIDEO_CALL_ICE_CANDIDATE,
+		({ targetSocketId, candidate }) => {
+			io.to(targetSocketId).emit(SocketEvent.VIDEO_CALL_ICE_CANDIDATE, {
+				senderSocketId: socket.id,
+				candidate,
+			})
+		}
+	)
+
+	socket.on(SocketEvent.VIDEO_CALL_USER_LEFT, () => {
+		const roomId = getRoomId(socket.id)
+		if (!roomId) return
+
+		// Remove from active call participants
+		const callParticipants = activeCallParticipants.get(roomId)
+		if (callParticipants) {
+			callParticipants.delete(socket.id)
+			if (callParticipants.size === 0) {
+				activeCallParticipants.delete(roomId)
+			}
+		}
+
+		socket.broadcast.to(roomId).emit(SocketEvent.VIDEO_CALL_USER_LEFT, {
+			socketId: socket.id,
+		})
+	})
+
+	socket.on(SocketEvent.VIDEO_CALL_MUTE_TOGGLE, ({ isMuted }) => {
+		const roomId = getRoomId(socket.id)
+		if (!roomId) return
+		socket.broadcast.to(roomId).emit(SocketEvent.VIDEO_CALL_MUTE_TOGGLE, {
+			socketId: socket.id,
+			isMuted,
+		})
+	})
+
+	socket.on(SocketEvent.VIDEO_CALL_VIDEO_TOGGLE, ({ isVideoOff }) => {
+		const roomId = getRoomId(socket.id)
+		if (!roomId) return
+		socket.broadcast.to(roomId).emit(SocketEvent.VIDEO_CALL_VIDEO_TOGGLE, {
+			socketId: socket.id,
+			isVideoOff,
 		})
 	})
 })

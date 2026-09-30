@@ -27,6 +27,16 @@ enum SocketEvent {
 	REQUEST_DRAWING = "request-drawing",
 	SYNC_DRAWING = "sync-drawing",
 	DRAWING_UPDATE = "drawing-update",
+	// WebRTC video/audio call signaling
+	VIDEO_CALL_REQUEST_PARTICIPANTS = "video-call-request-participants",
+	VIDEO_CALL_PARTICIPANTS_LIST = "video-call-participants-list",
+	VIDEO_CALL_OFFER = "video-call-offer",
+	VIDEO_CALL_ANSWER = "video-call-answer",
+	VIDEO_CALL_ICE_CANDIDATE = "video-call-ice-candidate",
+	VIDEO_CALL_USER_JOINED = "video-call-user-joined",
+	VIDEO_CALL_USER_LEFT = "video-call-user-left",
+	VIDEO_CALL_MUTE_TOGGLE = "video-call-mute-toggle",
+	VIDEO_CALL_VIDEO_TOGGLE = "video-call-video-toggle",
 }
 
 interface SocketContext {
