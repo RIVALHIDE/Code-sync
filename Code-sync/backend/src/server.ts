@@ -410,6 +410,38 @@ app.get("/", (req: Request, res: Response) => {
 	res.sendFile(path.join(__dirname, "..", "public", "index.html"))
 })
 
+// AI proxy — forwards chat requests to Pollinations /openai endpoint
+// Avoids browser-side Turnstile restrictions
+app.post("/api/ai/chat", async (req: Request, res: Response) => {
+	try {
+		const { messages, model = "openai-fast" } = req.body
+		if (!messages || !Array.isArray(messages)) {
+			res.status(400).json({ error: "messages array is required" })
+			return
+		}
+
+		const response = await fetch("https://text.pollinations.ai/openai", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ model, messages }),
+		})
+
+		if (!response.ok) {
+			const errText = await response.text()
+			console.error("Pollinations error:", errText)
+			res.status(response.status).json({ error: errText })
+			return
+		}
+
+		const data = await response.json() as any
+		const content = data?.choices?.[0]?.message?.content ?? ""
+		res.json({ content })
+	} catch (err) {
+		console.error("AI proxy error:", err)
+		res.status(500).json({ error: "Failed to contact AI service" })
+	}
+})
+
 server.listen(PORT, () => {
 	console.log(`Listening on port ${PORT}`)
 })

@@ -16,14 +16,17 @@ import CodeMirror, {
     scrollPastEnd,
 } from "@uiw/react-codemirror"
 import { EditorView } from "@codemirror/view"
+import { lintGutter } from "@codemirror/lint"
 import { useEffect, useMemo, useState, useRef, useCallback } from "react"
 import toast from "react-hot-toast"
 import { collaborativeHighlighting, updateRemoteUsers } from "./collaborativeHighlighting"
+import { createLintExtension } from "./linting"
+import { createAutocompleteExtension } from "./autocomplete"
 
 function Editor() {
     const { users, currentUser } = useAppContext()
     const { activeFile, setActiveFile } = useFileSystem()
-    const { theme, language, fontSize } = useSettings()
+    const { theme, language, fontSize, enableLinting } = useSettings()
     const { socket } = useSocket()
     const { viewHeight } = useResponsive()
     const [timeOut, setTimeOut] = useState(setTimeout(() => {}, 0))
@@ -111,7 +114,16 @@ function Editor() {
             collaborativeHighlighting(),
             EditorView.updateListener.of(handleSelectionChange),
             scrollPastEnd(),
+            // Autocomplete + auto-brackets for all languages
+            ...createAutocompleteExtension(language),
         ]
+
+        // Add linting extensions when enabled
+        if (enableLinting) {
+            extensions.push(lintGutter())
+            extensions.push(createLintExtension(language))
+        }
+
         const langExt = loadLanguage(language.toLowerCase() as LanguageName)
         if (langExt) {
             extensions.push(langExt)
@@ -125,7 +137,7 @@ function Editor() {
         }
 
         setExtensions(extensions)
-    }, [filteredUsers, language, handleSelectionChange])
+    }, [filteredUsers, language, handleSelectionChange, enableLinting])
 
     // Update remote users when filteredUsers changes
     useEffect(() => {

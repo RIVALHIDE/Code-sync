@@ -8,6 +8,7 @@ import { SocketProvider } from "./SocketContext.jsx"
 import { ViewContextProvider } from "./ViewContext.js"
 import { CopilotContextProvider } from "./CopilotContext.js"
 import { VideoCallContextProvider } from "./VideoCallContext"
+import { PedagogicalAIContextProvider } from "./PedagogicalAIContext"
 
 function AppProvider({ children }: { children: ReactNode }) {
     return (
@@ -18,11 +19,13 @@ function AppProvider({ children }: { children: ReactNode }) {
                         <FileContextProvider>
                             <CopilotContextProvider>
                                 <RunCodeContextProvider>
-                                    <ChatContextProvider>
-                                        <VideoCallContextProvider>
-                                            {children}
-                                        </VideoCallContextProvider>
-                                    </ChatContextProvider>
+                                    <PedagogicalAIContextProvider>
+                                        <ChatContextProvider>
+                                            <VideoCallContextProvider>
+                                                {children}
+                                            </VideoCallContextProvider>
+                                        </ChatContextProvider>
+                                    </PedagogicalAIContextProvider>
                                 </RunCodeContextProvider>
                             </CopilotContextProvider>
                         </FileContextProvider>

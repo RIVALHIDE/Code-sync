@@ -18,6 +18,8 @@ function SettingsView() {
         setFontFamily,
         showGitHubCorner,
         setShowGitHubCorner,
+        enableLinting,
+        setEnableLinting,
         resetSettings,
     } = useSettings()
     const { viewHeight } = useResponsive()
@@ -32,6 +34,8 @@ function SettingsView() {
         setFontSize(parseInt(e.target.value))
     const handleShowGitHubCornerChange = (e: ChangeEvent<HTMLInputElement>) =>
         setShowGitHubCorner(e.target.checked)
+    const handleEnableLintingChange = (e: ChangeEvent<HTMLInputElement>) =>
+        setEnableLinting(e.target.checked)
 
     useEffect(() => {
         // Set editor font family
@@ -96,6 +100,24 @@ function SettingsView() {
                         type="checkbox"
                         onChange={handleShowGitHubCornerChange}
                         checked={showGitHubCorner}
+                    />
+                    <div className="peer h-6 w-12 rounded-full bg-darkHover outline-none duration-100 after:absolute after:left-1 after:top-1 after:flex after:h-4 after:w-4 after:items-center after:justify-center after:rounded-full after:bg-white after:font-bold after:outline-none after:duration-500 peer-checked:after:translate-x-6 peer-checked:after:border-white peer-focus:outline-none"></div>
+                </label>
+            </div>
+            {/* Enable linting option */}
+            <div className="flex w-full items-center justify-between">
+                <div className="flex flex-col">
+                    <label>Code quality linting</label>
+                    <span className="text-xs text-white/40">
+                        Real-time style &amp; error checks
+                    </span>
+                </div>
+                <label className="relative inline-flex cursor-pointer items-center">
+                    <input
+                        className="peer sr-only"
+                        type="checkbox"
+                        onChange={handleEnableLintingChange}
+                        checked={enableLinting}
                     />
                     <div className="peer h-6 w-12 rounded-full bg-darkHover outline-none duration-100 after:absolute after:left-1 after:top-1 after:flex after:h-4 after:w-4 after:items-center after:justify-center after:rounded-full after:bg-white after:font-bold after:outline-none after:duration-500 peer-checked:after:translate-x-6 peer-checked:after:border-white peer-focus:outline-none"></div>
                 </label>

@@ -29,6 +29,7 @@ const defaultSettings: Settings = {
     fontSize: 16,
     fontFamily: "Space Mono",
     showGitHubCorner: true,
+    enableLinting: true,
 }
 
 function SettingContextProvider({ children }: { children: ReactNode }) {
@@ -56,6 +57,10 @@ function SettingContextProvider({ children }: { children: ReactNode }) {
         storedSettings.showGitHubCorner !== undefined
             ? storedSettings.showGitHubCorner
             : defaultSettings.showGitHubCorner
+    const storedEnableLinting =
+        storedSettings.enableLinting !== undefined
+            ? storedSettings.enableLinting
+            : defaultSettings.enableLinting
 
     const [theme, setTheme] = useState<string>(storedTheme)
     const [language, setLanguage] = useState<string>(storedLanguage)
@@ -64,6 +69,7 @@ function SettingContextProvider({ children }: { children: ReactNode }) {
     const [showGitHubCorner, setShowGitHubCorner] = useState<boolean>(
         storedShowGitHubCorner,
     )
+    const [enableLinting, setEnableLinting] = useState<boolean>(storedEnableLinting)
 
     const resetSettings = () => {
         setTheme(defaultSettings.theme)
@@ -71,6 +77,7 @@ function SettingContextProvider({ children }: { children: ReactNode }) {
         setFontSize(defaultSettings.fontSize)
         setFontFamily(defaultSettings.fontFamily)
         setShowGitHubCorner(defaultSettings.showGitHubCorner)
+        setEnableLinting(defaultSettings.enableLinting)
     }
 
     useEffect(() => {
@@ -81,9 +88,10 @@ function SettingContextProvider({ children }: { children: ReactNode }) {
             fontSize,
             fontFamily,
             showGitHubCorner,
+            enableLinting,
         }
         localStorage.setItem("settings", JSON.stringify(updatedSettings))
-    }, [theme, language, fontSize, fontFamily, showGitHubCorner])
+    }, [theme, language, fontSize, fontFamily, showGitHubCorner, enableLinting])
 
     return (
         <SettingContext.Provider
@@ -98,6 +106,8 @@ function SettingContextProvider({ children }: { children: ReactNode }) {
                 setFontFamily,
                 showGitHubCorner,
                 setShowGitHubCorner,
+                enableLinting,
+                setEnableLinting,
                 resetSettings,
             }}
         >
