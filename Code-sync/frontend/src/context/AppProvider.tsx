@@ -9,6 +9,7 @@ import { ViewContextProvider } from "./ViewContext.js"
 import { CopilotContextProvider } from "./CopilotContext.js"
 import { VideoCallContextProvider } from "./VideoCallContext"
 import { PedagogicalAIContextProvider } from "./PedagogicalAIContext"
+import { RecordingContextProvider } from "./RecordingContext"
 
 function AppProvider({ children }: { children: ReactNode }) {
     return (
@@ -20,11 +21,13 @@ function AppProvider({ children }: { children: ReactNode }) {
                             <CopilotContextProvider>
                                 <RunCodeContextProvider>
                                     <PedagogicalAIContextProvider>
-                                        <ChatContextProvider>
-                                            <VideoCallContextProvider>
-                                                {children}
-                                            </VideoCallContextProvider>
-                                        </ChatContextProvider>
+                                        <RecordingContextProvider>
+                                            <ChatContextProvider>
+                                                <VideoCallContextProvider>
+                                                    {children}
+                                                </VideoCallContextProvider>
+                                            </ChatContextProvider>
+                                        </RecordingContextProvider>
                                     </PedagogicalAIContextProvider>
                                 </RunCodeContextProvider>
                             </CopilotContextProvider>

@@ -6,6 +6,7 @@ enum VIEWS {
     COPILOT = "COPILOT",
     SETTINGS = "SETTINGS",
     VIDEO_CALL = "VIDEO_CALL",
+    RECORDINGS = "RECORDINGS",
 }
 
 interface ViewContext {

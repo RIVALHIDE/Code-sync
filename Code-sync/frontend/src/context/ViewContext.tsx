@@ -5,6 +5,7 @@ import RunView from "@/components/sidebar/sidebar-views/RunView"
 import SettingsView from "@/components/sidebar/sidebar-views/SettingsView"
 import UsersView from "@/components/sidebar/sidebar-views/UsersView"
 import VideoCallView from "@/components/sidebar/sidebar-views/VideoCallView"
+import RecordingView from "@/components/sidebar/sidebar-views/RecordingView"
 import useWindowDimensions from "@/hooks/useWindowDimensions"
 import { VIEWS, ViewContext as ViewContextType } from "@/types/view"
 import { ReactNode, createContext, useContext, useState } from "react"
@@ -12,6 +13,7 @@ import { IoSettingsOutline } from "react-icons/io5"
 import { LuFiles, LuSparkles } from "react-icons/lu"
 import { PiChats, PiPlay, PiUsers } from "react-icons/pi"
 import { MdVideoCall } from "react-icons/md"
+import { LuCircleDot } from "react-icons/lu"
 
 const ViewContext = createContext<ViewContextType | null>(null)
 
@@ -35,6 +37,7 @@ function ViewContextProvider({ children }: { children: ReactNode }) {
         [VIEWS.CHATS]: <ChatsView />,
         [VIEWS.RUN]: <RunView />,
         [VIEWS.VIDEO_CALL]: <VideoCallView />,
+        [VIEWS.RECORDINGS]: <RecordingView />,
     })
     const [viewIcons] = useState({
         [VIEWS.FILES]: <LuFiles size={28} />,
@@ -44,6 +47,7 @@ function ViewContextProvider({ children }: { children: ReactNode }) {
         [VIEWS.COPILOT]: <LuSparkles size={28} />,
         [VIEWS.RUN]: <PiPlay size={28} />,
         [VIEWS.VIDEO_CALL]: <MdVideoCall size={30} />,
+        [VIEWS.RECORDINGS]: <LuCircleDot size={26} />,
     })
 
     return (
