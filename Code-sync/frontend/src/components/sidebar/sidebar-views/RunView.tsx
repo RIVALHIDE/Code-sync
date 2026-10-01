@@ -74,15 +74,19 @@ function RunView() {
 
     return (
         <div
-            className="flex flex-col items-center gap-2 p-4"
-            style={{ height: viewHeight, overflowY: "auto" }}
+            className="sidebar-panel sidebar-panel--run"
+            style={{ height: viewHeight }}
         >
-            <h1 className="view-title">Run Code</h1>
-            <div className="flex w-full flex-col items-end gap-2">
+            <div className="sidebar-panel-header">
+                <h1 className="sidebar-panel-title">Run Code</h1>
+            </div>
+            <div className="sidebar-run-form">
                 {/* Language selector */}
-                <div className="relative w-full">
+                <div className="sidebar-panel-field">
+                    <label htmlFor="run-language">Runtime</label>
                     <select
-                        className="w-full rounded-md border-none bg-darkHover px-4 py-2 text-white outline-none"
+                        id="run-language"
+                        className="sidebar-panel-select"
                         value={JSON.stringify(selectedLanguage)}
                         onChange={handleLanguageChange}
                     >
@@ -97,20 +101,22 @@ function RunView() {
                     </select>
                     <PiCaretDownBold
                         size={16}
-                        className="absolute bottom-3 right-4 z-10 text-white"
+                        className="sidebar-select-arrow"
                     />
                 </div>
 
                 {/* stdin input */}
+                <label className="sidebar-panel-label" htmlFor="run-input">Standard input</label>
                 <textarea
-                    className="min-h-[80px] w-full resize-none rounded-md border-none bg-darkHover p-2 text-white outline-none"
+                    id="run-input"
+                    className="sidebar-run-input"
                     placeholder="Write your input here..."
                     onChange={(e) => setInput(e.target.value)}
                 />
 
                 {/* Run button */}
                 <button
-                    className="flex w-full justify-center rounded-md bg-primary p-2 font-bold text-black outline-none disabled:cursor-not-allowed disabled:opacity-50"
+                    className="sidebar-panel-button sidebar-panel-button--primary"
                     onClick={() => { clearHints(); runCode() }}
                     disabled={isRunning}
                 >
@@ -118,8 +124,8 @@ function RunView() {
                 </button>
 
                 {/* Output header */}
-                <label className="flex w-full justify-between">
-                    <span className="flex items-center gap-2">
+                <div className="sidebar-panel-row">
+                    <span className="sidebar-panel-label flex flex-wrap items-center gap-2">
                         Output
                         {isError && (
                             <span className="rounded-full bg-red-500/20 px-2 py-0.5 text-xs font-medium text-red-400">
@@ -127,20 +133,20 @@ function RunView() {
                             </span>
                         )}
                     </span>
-                    <button onClick={copyOutput} title="Copy Output">
-                        <LuCopy size={18} className="cursor-pointer text-white" />
+                    <button className="sidebar-panel-icon-button" onClick={copyOutput} title="Copy Output" aria-label="Copy output">
+                        <LuCopy size={14} />
                     </button>
-                </label>
+                </div>
 
                 {/* Output box */}
                 <div
-                    className={`w-full resize-none overflow-y-auto rounded-md border-none p-2 text-white outline-none ${
+                    className={`sidebar-run-output ${
                         isError ? "bg-red-950/40 ring-1 ring-red-500/30" : "bg-darkHover"
                     }`}
-                    style={{ minHeight: "80px", maxHeight: "180px" }}
+                    aria-label="Code output"
                 >
                     <code>
-                        <pre className={`text-wrap text-sm ${isError ? "text-red-300" : ""}`}>
+                        <pre className={isError ? "text-red-300" : ""}>
                             {output}
                         </pre>
                     </code>
@@ -150,7 +156,7 @@ function RunView() {
                 {isError && !hasError && (
                     <button
                         onClick={handleAnalyzeError}
-                        className="flex w-full items-center justify-center gap-2 rounded-md bg-primary/10 py-2 text-sm font-semibold text-primary ring-1 ring-primary/30 transition-colors hover:bg-primary/20"
+                        className="sidebar-panel-button sidebar-panel-button--accent"
                     >
                         <PiStudent size={18} />
                         Analyze Error with AI Tutor

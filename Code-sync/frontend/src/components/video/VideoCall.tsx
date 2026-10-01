@@ -1,10 +1,12 @@
 import { useAppContext } from "@/context/AppContext"
 import { useVideoCall } from "@/context/VideoCallContext"
 import { VideoCallParticipant } from "@/types/videoCall"
+import { useState } from "react"
 import { BsMicFill, BsMicMuteFill } from "react-icons/bs"
 import { FaPhone, FaPhoneSlash, FaVideo, FaVideoSlash } from "react-icons/fa"
-import { LuCircle, LuSquare } from "react-icons/lu"
+import { LuCircle, LuLoader2, LuSquare, LuUsers } from "react-icons/lu"
 import VideoTile from "./VideoTile"
+import "@/styles/video-call.css"
 
 function VideoCall() {
     const { currentUser } = useAppContext()
@@ -22,6 +24,7 @@ function VideoCall() {
         startCallRecording,
         stopCallRecording,
     } = useVideoCall()
+    const [isJoining, setIsJoining] = useState(false)
 
     const localParticipant: VideoCallParticipant = {
         socketId: "local",
@@ -30,115 +33,159 @@ function VideoCall() {
         isMuted,
         isVideoOff,
     }
-
     const allParticipants = isInCall ? [localParticipant, ...participants] : []
 
-    const gridCols =
-        allParticipants.length <= 1
-            ? "grid-cols-1"
-            : allParticipants.length <= 4
-              ? "grid-cols-2"
-              : "grid-cols-3"
+    const handleJoin = async () => {
+        setIsJoining(true)
+        try {
+            await joinCall()
+        } finally {
+            setIsJoining(false)
+        }
+    }
 
     if (!isInCall) {
         return (
-            <div className="flex flex-1 flex-col items-center justify-center gap-4 p-6 text-center">
-                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/20">
-                    <FaVideo size={28} className="text-primary" />
+            <div className="video-call-lobby">
+                <div className="video-lobby-icon">
+                    <FaVideo size={24} />
                 </div>
-                <div>
-                    <h2 className="text-base font-semibold text-white">
-                        Video & Audio Call
-                    </h2>
-                    <p className="mt-1 text-sm text-white/50">
-                        Start a peer-to-peer call with everyone in the room.
-                    </p>
-                </div>
+                <h2>Better face to face.</h2>
+                <p>
+                    Talk through ideas, share a moment, and keep building
+                    together.
+                </p>
                 <button
-                    onClick={joinCall}
-                    className="flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-dark transition-opacity hover:opacity-90"
+                    onClick={handleJoin}
+                    disabled={isJoining}
+                    className="video-join-button"
                 >
-                    <FaPhone size={14} />
-                    Join Call
+                    {isJoining ? (
+                        <LuLoader2 size={16} className="animate-spin" />
+                    ) : (
+                        <FaPhone size={13} />
+                    )}
+                    {isJoining ? "Connecting…" : "Join Call"}
                 </button>
+                <span className="video-lobby-note">
+                    Your browser will ask for camera and microphone access.
+                </span>
             </div>
         )
     }
 
     return (
-        <div className="flex flex-1 flex-col overflow-hidden">
-            {/* Recording indicator */}
+        <div className="video-call">
+            <div className="video-call-summary">
+                <span>
+                    <LuUsers size={14} />
+                    In this call <strong>{allParticipants.length}</strong>
+                </span>
+                <span className="video-live-badge">
+                    <span />
+                    Live
+                </span>
+            </div>
             {isRecordingCall && (
-                <div className="flex items-center gap-2 bg-red-600/20 px-3 py-1.5">
-                    <LuCircle size={10} className="animate-pulse fill-red-500 text-red-500" />
-                    <span className="text-xs font-medium text-red-400">Recording call...</span>
+                <div className="video-recording-notice" role="status">
+                    <LuCircle size={9} className="fill-current" />
+                    Recording call…
                 </div>
             )}
 
-            {/* Video grid */}
-            <div className={`grid flex-1 gap-2 overflow-y-auto p-3 ${gridCols}`}>
-                {allParticipants.map((p) => (
-                    <VideoTile
-                        key={p.socketId}
-                        participant={p}
-                        isLocal={p.socketId === "local"}
-                    />
-                ))}
+            <div className="video-call-scroll" aria-label="Call participants">
+                <div className="video-participant-grid">
+                    {allParticipants.map((participant) => (
+                        <VideoTile
+                            key={participant.socketId}
+                            participant={participant}
+                            isLocal={participant.socketId === "local"}
+                        />
+                    ))}
+                </div>
                 {allParticipants.length === 1 && (
-                    <div className="flex items-center justify-center rounded-lg border border-dashed border-white/20 text-xs text-white/40">
-                        Waiting for others to join...
+                    <div className="video-waiting-state">
+                        <LuUsers size={18} />
+                        <strong>A little quiet in here</strong>
+                        <p>
+                            Use Invite in the workspace header to bring your
+                            team. They can join this call from the Video tab.
+                        </p>
                     </div>
                 )}
             </div>
 
-            {/* Controls bar */}
-            <div className="flex items-center justify-center gap-3 border-t border-darkHover px-4 py-3">
-                {/* Mute */}
+            <div
+                className="video-call-controls"
+                role="group"
+                aria-label="Call controls"
+            >
                 <button
                     onClick={toggleMute}
                     title={isMuted ? "Unmute" : "Mute"}
-                    className={`flex h-10 w-10 items-center justify-center rounded-full transition-colors ${
-                        isMuted
-                            ? "bg-red-500/20 text-red-400 hover:bg-red-500/30"
-                            : "bg-darkHover text-white hover:bg-white/10"
-                    }`}
+                    aria-label={
+                        isMuted ? "Unmute microphone" : "Mute microphone"
+                    }
+                    aria-pressed={isMuted}
+                    className={`video-control ${isMuted ? "is-off" : ""}`}
                 >
-                    {isMuted ? <BsMicMuteFill size={18} /> : <BsMicFill size={18} />}
+                    <span className="video-control-icon">
+                        {isMuted ? (
+                            <BsMicMuteFill size={16} />
+                        ) : (
+                            <BsMicFill size={16} />
+                        )}
+                    </span>
+                    <span>{isMuted ? "Unmute" : "Mic on"}</span>
                 </button>
-
-                {/* Video */}
                 <button
                     onClick={toggleVideo}
                     title={isVideoOff ? "Turn on camera" : "Turn off camera"}
-                    className={`flex h-10 w-10 items-center justify-center rounded-full transition-colors ${
-                        isVideoOff
-                            ? "bg-red-500/20 text-red-400 hover:bg-red-500/30"
-                            : "bg-darkHover text-white hover:bg-white/10"
-                    }`}
+                    aria-label={
+                        isVideoOff ? "Turn on camera" : "Turn off camera"
+                    }
+                    aria-pressed={!isVideoOff}
+                    className={`video-control ${isVideoOff ? "is-off" : ""}`}
                 >
-                    {isVideoOff ? <FaVideoSlash size={18} /> : <FaVideo size={18} />}
+                    <span className="video-control-icon">
+                        {isVideoOff ? (
+                            <FaVideoSlash size={16} />
+                        ) : (
+                            <FaVideo size={16} />
+                        )}
+                    </span>
+                    <span>{isVideoOff ? "Cam off" : "Cam on"}</span>
                 </button>
-
-                {/* Record call */}
                 <button
-                    onClick={isRecordingCall ? stopCallRecording : startCallRecording}
+                    onClick={
+                        isRecordingCall ? stopCallRecording : startCallRecording
+                    }
                     title={isRecordingCall ? "Stop recording" : "Record call"}
-                    className={`flex h-10 w-10 items-center justify-center rounded-full transition-colors ${
-                        isRecordingCall
-                            ? "bg-red-600 text-white hover:bg-red-700"
-                            : "bg-darkHover text-white hover:bg-white/10"
-                    }`}
+                    aria-label={
+                        isRecordingCall ? "Stop recording" : "Record call"
+                    }
+                    aria-pressed={isRecordingCall}
+                    className={`video-control ${isRecordingCall ? "is-recording" : ""}`}
                 >
-                    {isRecordingCall ? <LuSquare size={16} /> : <LuCircle size={16} />}
+                    <span className="video-control-icon">
+                        {isRecordingCall ? (
+                            <LuSquare size={16} />
+                        ) : (
+                            <LuCircle size={16} />
+                        )}
+                    </span>
+                    <span>{isRecordingCall ? "Stop" : "Record"}</span>
                 </button>
-
-                {/* Leave */}
                 <button
                     onClick={leaveCall}
                     title="Leave call"
-                    className="flex h-10 w-10 items-center justify-center rounded-full bg-red-600 text-white transition-colors hover:bg-red-700"
+                    aria-label="Leave call"
+                    className="video-control is-leave"
                 >
-                    <FaPhoneSlash size={18} />
+                    <span className="video-control-icon">
+                        <FaPhoneSlash size={16} />
+                    </span>
+                    <span>Leave</span>
                 </button>
             </div>
         </div>

@@ -3,7 +3,6 @@ import { useFileSystem } from "@/context/FileContext"
 import { useSettings } from "@/context/SettingContext"
 import { useSocket } from "@/context/SocketContext"
 import usePageEvents from "@/hooks/usePageEvents"
-import useResponsive from "@/hooks/useResponsive"
 import { editorThemes } from "@/resources/Themes"
 import { FileSystemItem } from "@/types/file"
 import { SocketEvent } from "@/types/socket"
@@ -19,7 +18,10 @@ import { EditorView } from "@codemirror/view"
 import { lintGutter } from "@codemirror/lint"
 import { useEffect, useMemo, useState, useRef, useCallback } from "react"
 import toast from "react-hot-toast"
-import { collaborativeHighlighting, updateRemoteUsers } from "./collaborativeHighlighting"
+import {
+    collaborativeHighlighting,
+    updateRemoteUsers,
+} from "./collaborativeHighlighting"
 import { createLintExtension } from "./linting"
 import { createAutocompleteExtension } from "./autocomplete"
 import { useRecording } from "@/context/RecordingContext"
@@ -27,9 +29,9 @@ import { useRecording } from "@/context/RecordingContext"
 function Editor() {
     const { users, currentUser } = useAppContext()
     const { activeFile, setActiveFile } = useFileSystem()
-    const { theme, language, fontSize, enableLinting } = useSettings()
+    const { theme, language, fontSize, fontFamily, enableLinting } =
+        useSettings()
     const { socket } = useSocket()
-    const { viewHeight } = useResponsive()
     const { captureEvent, recordingState } = useRecording()
     const [timeOut, setTimeOut] = useState(setTimeout(() => {}, 0))
     const filteredUsers = useMemo(
@@ -39,8 +41,13 @@ function Editor() {
     const [extensions, setExtensions] = useState<Extension[]>([])
     const editorRef = useRef<any>(null)
     const [lastCursorPosition, setLastCursorPosition] = useState<number>(0)
-    const [lastSelection, setLastSelection] = useState<{start?: number, end?: number}>({})
-    const cursorMoveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+    const [lastSelection, setLastSelection] = useState<{
+        start?: number
+        end?: number
+    }>({})
+    const cursorMoveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+        null,
+    )
 
     const onCodeChange = (code: string, view: ViewUpdate) => {
         if (!activeFile) return
@@ -71,7 +78,7 @@ function Editor() {
         socket.emit(SocketEvent.TYPING_START, {
             cursorPosition,
             selectionStart,
-            selectionEnd
+            selectionEnd,
         })
         socket.emit(SocketEvent.FILE_UPDATED, {
             fileId: activeFile.id,
@@ -87,37 +94,42 @@ function Editor() {
     }
 
     // Handle cursor/selection changes without typing
-    const handleSelectionChange = useCallback((view: ViewUpdate) => {
-        if (!view.selectionSet) return
+    const handleSelectionChange = useCallback(
+        (view: ViewUpdate) => {
+            if (!view.selectionSet) return
 
-        const selection = view.state?.selection?.main
-        const cursorPosition = selection?.head || 0
-        const selectionStart = selection?.from
-        const selectionEnd = selection?.to
+            const selection = view.state?.selection?.main
+            const cursorPosition = selection?.head || 0
+            const selectionStart = selection?.from
+            const selectionEnd = selection?.to
 
-        // Check if cursor or selection actually changed
-        const cursorChanged = cursorPosition !== lastCursorPosition
-        const selectionChanged = selectionStart !== lastSelection.start || selectionEnd !== lastSelection.end
+            // Check if cursor or selection actually changed
+            const cursorChanged = cursorPosition !== lastCursorPosition
+            const selectionChanged =
+                selectionStart !== lastSelection.start ||
+                selectionEnd !== lastSelection.end
 
-        if (cursorChanged || selectionChanged) {
-            setLastCursorPosition(cursorPosition)
-            setLastSelection({ start: selectionStart, end: selectionEnd })
+            if (cursorChanged || selectionChanged) {
+                setLastCursorPosition(cursorPosition)
+                setLastSelection({ start: selectionStart, end: selectionEnd })
 
-            // Clear existing timeout
-            if (cursorMoveTimeoutRef.current) {
-                clearTimeout(cursorMoveTimeoutRef.current)
+                // Clear existing timeout
+                if (cursorMoveTimeoutRef.current) {
+                    clearTimeout(cursorMoveTimeoutRef.current)
+                }
+
+                // Debounce cursor move events
+                cursorMoveTimeoutRef.current = setTimeout(() => {
+                    socket.emit(SocketEvent.CURSOR_MOVE, {
+                        cursorPosition,
+                        selectionStart,
+                        selectionEnd,
+                    })
+                }, 100) // 100ms debounce
             }
-
-            // Debounce cursor move events
-            cursorMoveTimeoutRef.current = setTimeout(() => {
-                socket.emit(SocketEvent.CURSOR_MOVE, {
-                    cursorPosition,
-                    selectionStart,
-                    selectionEnd
-                })
-            }, 100) // 100ms debounce
-        }
-    }, [lastCursorPosition, lastSelection, socket])
+        },
+        [lastCursorPosition, lastSelection, socket],
+    )
 
     // Listen wheel event to zoom in/out and prevent page reload
     usePageEvents()
@@ -158,7 +170,7 @@ function Editor() {
     useEffect(() => {
         if (editorRef.current?.view) {
             editorRef.current.view.dispatch({
-                effects: updateRemoteUsers.of(filteredUsers)
+                effects: updateRemoteUsers.of(filteredUsers),
             })
         }
     }, [filteredUsers])
@@ -173,8 +185,8 @@ function Editor() {
                 content: activeFile.content ?? "",
             })
         }
-    // Only fire when the active file id changes, not on every content update
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // Only fire when the active file id changes, not on every content update
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [activeFile?.id, recordingState])
 
     return (
@@ -184,12 +196,12 @@ function Editor() {
             onChange={onCodeChange}
             value={activeFile?.content}
             extensions={extensions}
-            minHeight="100%"
-            maxWidth="100vw"
+            height="100%"
+            className="workspace-codemirror"
             style={{
                 fontSize: fontSize + "px",
-                height: viewHeight,
-                position: "relative",
+                fontFamily: `${fontFamily}, monospace`,
+                height: "100%",
             }}
         />
     )

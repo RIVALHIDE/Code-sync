@@ -1,17 +1,15 @@
 import VideoCall from "@/components/video/VideoCall"
-import useResponsive from "@/hooks/useResponsive"
 
 function VideoCallView() {
-    const { viewHeight } = useResponsive()
-
     return (
-        <div
-            className="flex w-full flex-col"
-            style={{ height: viewHeight }}
-        >
-            <h1 className="view-title px-4 pt-4">Video Call</h1>
+        <section className="video-call-panel" aria-label="Video call">
+            <header className="video-panel-header">
+                <span>COLLABORATE</span>
+                <h1>Video call</h1>
+                <p>See your team while you build.</p>
+            </header>
             <VideoCall />
-        </div>
+        </section>
     )
 }
 

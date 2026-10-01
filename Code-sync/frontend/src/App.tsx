@@ -9,12 +9,19 @@ const App = () => {
         <>
             <Router>
                 <Routes>
-                    <Route path="/" element={<HomePage />} />
+                    <Route
+                        path="/"
+                        element={
+                            <>
+                                <HomePage />
+                                <GitHubCorner />
+                            </>
+                        }
+                    />
                     <Route path="/editor/:roomId" element={<EditorPage />} />
                 </Routes>
             </Router>
             <Toast /> {/* Toast component from react-hot-toast */}
-            <GitHubCorner />
         </>
     )
 }

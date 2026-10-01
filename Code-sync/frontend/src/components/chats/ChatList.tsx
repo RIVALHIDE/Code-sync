@@ -35,31 +35,32 @@ function ChatList() {
 
     return (
         <div
-            className="flex-grow overflow-auto rounded-md bg-darkHover p-2"
+            className="sidebar-chat-list"
             ref={messagesContainerRef}
             onScroll={handleScroll}
         >
+            {messages.length === 0 && (
+                <div className="sidebar-panel-empty">
+                    <p>No messages yet</p>
+                    <span>Start a conversation with your room.</span>
+                </div>
+            )}
             {/* Chat messages */}
             {messages.map((message, index) => {
                 return (
                     <div
                         key={index}
-                        className={
-                            "mb-2 w-[80%] self-end break-words rounded-md bg-dark px-3 py-2" +
-                            (message.username === currentUser.username
-                                ? " ml-auto "
-                                : "")
-                        }
+                        className={`sidebar-chat-message${message.username === currentUser.username ? " is-own" : ""}`}
                     >
-                        <div className="flex justify-between">
-                            <span className="text-xs text-primary">
+                        <div className="sidebar-chat-meta">
+                            <span className="sidebar-chat-author" title={message.username}>
                                 {message.username}
                             </span>
-                            <span className="text-xs text-white">
+                            <span className="sidebar-chat-time">
                                 {message.timestamp}
                             </span>
                         </div>
-                        <p className="py-1">{message.message}</p>
+                        <p className="sidebar-chat-text">{message.message}</p>
                     </div>
                 )
             })}

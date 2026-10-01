@@ -1,18 +1,21 @@
-import SidebarButton from "@/components/sidebar/sidebar-views/SidebarButton"
+import SidebarButton, {
+    VIEW_LABELS,
+} from "@/components/sidebar/sidebar-views/SidebarButton"
 import { useAppContext } from "@/context/AppContext"
 import { useSocket } from "@/context/SocketContext"
 import { useViews } from "@/context/ViewContext"
-import useResponsive from "@/hooks/useResponsive"
 import useWindowDimensions from "@/hooks/useWindowDimensions"
 import { ACTIVITY_STATE } from "@/types/app"
 import { SocketEvent } from "@/types/socket"
 import { VIEWS } from "@/types/view"
-import { IoCodeSlash } from "react-icons/io5"
-import { MdOutlineDraw } from "react-icons/md"
-import cn from "classnames"
-import { Tooltip } from 'react-tooltip'
-import { useState } from 'react'
-import { tooltipStyles } from "./tooltipStyles"
+import { LuCode2, LuPenTool, LuPanelLeftClose, LuX } from "react-icons/lu"
+import { useEffect, useRef } from "react"
+
+const toolGroups = [
+    [VIEWS.FILES, VIEWS.COPILOT, VIEWS.RUN],
+    [VIEWS.CHATS, VIEWS.CLIENTS, VIEWS.VIDEO_CALL, VIEWS.VOICE],
+    [VIEWS.CO_PROMPT, VIEWS.RECORDINGS, VIEWS.DASHBOARD],
+]
 
 function Sidebar() {
     const {
@@ -22,121 +25,127 @@ function Sidebar() {
         viewIcons,
         setIsSidebarOpen,
     } = useViews()
-    const { minHeightReached } = useResponsive()
     const { activityState, setActivityState } = useAppContext()
     const { socket } = useSocket()
     const { isMobile } = useWindowDimensions()
-    const [showTooltip, setShowTooltip] = useState(true)
+    const closeButton = useRef<HTMLButtonElement>(null)
 
-    const changeState = () => {
-        setShowTooltip(false)
+    useEffect(() => {
+        if (!isMobile || !isSidebarOpen) return
+        const previouslyFocused = document.activeElement as HTMLElement | null
+        closeButton.current?.focus()
+        const closeOnEscape = (event: KeyboardEvent) => {
+            if (event.key === "Escape") setIsSidebarOpen(false)
+        }
+        window.addEventListener("keydown", closeOnEscape)
+        return () => {
+            window.removeEventListener("keydown", closeOnEscape)
+            if (previouslyFocused?.isConnected) previouslyFocused.focus()
+        }
+    }, [isMobile, isSidebarOpen, setIsSidebarOpen])
+
+    const changeActivity = () => {
         if (activityState === ACTIVITY_STATE.CODING) {
             setActivityState(ACTIVITY_STATE.DRAWING)
             socket.emit(SocketEvent.REQUEST_DRAWING)
-        } else {
-            setActivityState(ACTIVITY_STATE.CODING)
-        }
-
-        if (isMobile) {
-            setIsSidebarOpen(false)
-        }
+        } else setActivityState(ACTIVITY_STATE.CODING)
+        if (isMobile) setIsSidebarOpen(false)
     }
 
     return (
-        <aside className="flex w-full md:h-full md:max-h-full md:min-h-full md:w-auto">
-            <div
-                className={cn(
-                    "fixed bottom-0 left-0 z-50 flex h-[50px] w-full gap-4 self-end overflow-hidden border-t border-darkHover bg-dark p-2 md:static md:h-full md:w-[50px] md:min-w-[50px] md:flex-col md:border-r md:border-t-0 md:p-2 md:pt-4",
-                    {
-                        hidden: minHeightReached,
-                    },
-                )}
-            >
-                <SidebarButton
-                    viewName={VIEWS.FILES}
-                    icon={viewIcons[VIEWS.FILES]}
-                />
-                <SidebarButton
-                    viewName={VIEWS.CHATS}
-                    icon={viewIcons[VIEWS.CHATS]}
-                />
-                <SidebarButton
-                    viewName={VIEWS.COPILOT}
-                    icon={viewIcons[VIEWS.COPILOT]}
-                />
-                <SidebarButton
-                    viewName={VIEWS.RUN}
-                    icon={viewIcons[VIEWS.RUN]}
-                />
-                <SidebarButton
-                    viewName={VIEWS.CLIENTS}
-                    icon={viewIcons[VIEWS.CLIENTS]}
-                />
-                <SidebarButton
-                    viewName={VIEWS.VIDEO_CALL}
-                    icon={viewIcons[VIEWS.VIDEO_CALL]}
-                />
-                <SidebarButton
-                    viewName={VIEWS.RECORDINGS}
-                    icon={viewIcons[VIEWS.RECORDINGS]}
-                />
-                <SidebarButton
-                    viewName={VIEWS.CO_PROMPT}
-                    icon={viewIcons[VIEWS.CO_PROMPT]}
-                />
-                <SidebarButton
-                    viewName={VIEWS.VOICE}
-                    icon={viewIcons[VIEWS.VOICE]}
-                />
-                <SidebarButton
-                    viewName={VIEWS.DASHBOARD}
-                    icon={viewIcons[VIEWS.DASHBOARD]}
-                />
-                <SidebarButton
-                    viewName={VIEWS.SETTINGS}
-                    icon={viewIcons[VIEWS.SETTINGS]}
-                />
-
-                {/* Button to change activity state coding or drawing */}
-                <div className="flex h-fit items-center justify-center">
+        <aside className="workspace-sidebar" aria-label="Workspace tools">
+            <nav className="workspace-rail" aria-label="Workspace navigation">
+                <div className="rail-tools">
+                    {toolGroups.map((group, index) => (
+                        <div className="rail-group" key={index}>
+                            {group.map((view) => (
+                                <SidebarButton
+                                    key={view}
+                                    viewName={view}
+                                    icon={viewIcons[view]}
+                                />
+                            ))}
+                        </div>
+                    ))}
+                </div>
+                <div className="rail-utilities">
                     <button
-                        className="justify-cente flex items-center  rounded p-1.5 transition-colors duration-200 ease-in-out hover:bg-[#3D404A]"
-                        onClick={changeState}
-                        onMouseEnter={() => setShowTooltip(true)}
-                        data-tooltip-id="activity-state-tooltip"
-                        data-tooltip-content={
+                        className={`workspace-tool ${activityState === ACTIVITY_STATE.DRAWING ? "is-active" : ""}`}
+                        onClick={changeActivity}
+                        aria-label={
                             activityState === ACTIVITY_STATE.CODING
-                                ? "Switch to Drawing Mode"
-                                : "Switch to Coding Mode"
+                                ? "Switch to whiteboard"
+                                : "Switch to code editor"
+                        }
+                        title={
+                            activityState === ACTIVITY_STATE.CODING
+                                ? "Switch to whiteboard"
+                                : "Switch to code editor"
                         }
                     >
                         {activityState === ACTIVITY_STATE.CODING ? (
-                            <MdOutlineDraw size={30} />
+                            <LuPenTool />
                         ) : (
-                            <IoCodeSlash size={30} />
+                            <LuCode2 />
                         )}
+                        <span>
+                            {activityState === ACTIVITY_STATE.CODING
+                                ? "Draw"
+                                : "Code"}
+                        </span>
                     </button>
-                    {showTooltip && (
-                        <Tooltip
-                            id="activity-state-tooltip"
-                            place="right"
-                            offset={15}
-                            className="!z-50"
-                            style={tooltipStyles}
-                            noArrow={false}
-                            positionStrategy="fixed"
-                            float={true}
+                    <SidebarButton
+                        viewName={VIEWS.SETTINGS}
+                        icon={viewIcons[VIEWS.SETTINGS]}
+                    />
+                </div>
+            </nav>
+            {isSidebarOpen && (
+                <>
+                    {isMobile && (
+                        <button
+                            className="panel-backdrop"
+                            aria-label="Dismiss tools panel"
+                            onClick={() => setIsSidebarOpen(false)}
                         />
                     )}
-                </div>
-            </div>
-            <div
-                className="absolute left-0 top-0 z-20 w-full flex-col bg-dark md:static md:min-w-[300px]"
-                style={isSidebarOpen ? {} : { display: "none" }}
-            >
-                {/* Render the active view component */}
-                {viewComponents[activeView]}
-            </div>
+                    <section
+                        id="workspace-panel"
+                        className="workspace-panel"
+                        aria-label={`${VIEW_LABELS[activeView]} panel`}
+                    >
+                        <div className="workspace-panel-heading">
+                            <span>
+                                <span className="panel-heading-dot" />
+                                {VIEW_LABELS[activeView]}
+                                <span className="panel-heading-caption">
+                                    {" "}
+                                    / workspace
+                                </span>
+                            </span>
+                            <button
+                                ref={closeButton}
+                                className="workspace-icon-button"
+                                onClick={() => setIsSidebarOpen(false)}
+                                aria-label="Close tools panel"
+                                title="Close tools panel"
+                            >
+                                {isMobile ? (
+                                    <LuX size={16} />
+                                ) : (
+                                    <LuPanelLeftClose size={16} />
+                                )}
+                            </button>
+                        </div>
+                        <div
+                            className="workspace-panel-content"
+                            id="workspace-panel-content"
+                        >
+                            {viewComponents[activeView]}
+                        </div>
+                    </section>
+                </>
+            )}
         </aside>
     )
 }

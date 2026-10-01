@@ -49,12 +49,14 @@ function SettingsView() {
 
     return (
         <div
-            className="flex flex-col items-center gap-2 p-4"
+            className="sidebar-panel sidebar-panel--settings"
             style={{ height: viewHeight }}
         >
-            <h1 className="view-title">Settings</h1>
+            <div className="sidebar-panel-header">
+                <h1 className="sidebar-panel-title">Editor settings</h1>
+            </div>
             {/* Choose Font Family option */}
-            <div className="flex w-full items-end gap-2">
+            <div className="sidebar-settings-font-row">
                 <Select
                     onChange={handleFontFamilyChange}
                     value={fontFamily}
@@ -62,20 +64,22 @@ function SettingsView() {
                     title="Font Family"
                 />
                 {/* Choose font size option */}
-                <select
-                    value={fontSize}
-                    onChange={handleFontSizeChange}
-                    className="rounded-md border-none bg-darkHover px-4 py-2 text-white outline-none"
-                    title="Font Size"
-                >
-                    {[...Array(13).keys()].map((size) => {
-                        return (
+                <div className="sidebar-panel-field">
+                    <label htmlFor="editor-font-size">Size</label>
+                    <select
+                        id="editor-font-size"
+                        value={fontSize}
+                        onChange={handleFontSizeChange}
+                        className="sidebar-settings-size"
+                        title="Font Size"
+                    >
+                        {[...Array(13).keys()].map((size) => (
                             <option key={size} value={size + 12}>
                                 {size + 12}
                             </option>
-                        )
-                    })}
-                </select>
+                        ))}
+                    </select>
+                </div>
             </div>
             {/* Choose theme option */}
             <Select
@@ -92,38 +96,40 @@ function SettingsView() {
                 title="Language"
             />
             {/* Show GitHub corner option */}
-            <div className="mt-4 flex w-full items-center justify-between">
-                <label>Show github corner</label>
-                <label className="relative inline-flex cursor-pointer items-center">
+            <div className="sidebar-settings-toggle-row">
+                <span id="github-corner-label">Show GitHub corner</span>
+                <label className="sidebar-settings-toggle">
                     <input
                         className="peer sr-only"
                         type="checkbox"
                         onChange={handleShowGitHubCornerChange}
                         checked={showGitHubCorner}
+                        aria-labelledby="github-corner-label"
                     />
-                    <div className="peer h-6 w-12 rounded-full bg-darkHover outline-none duration-100 after:absolute after:left-1 after:top-1 after:flex after:h-4 after:w-4 after:items-center after:justify-center after:rounded-full after:bg-white after:font-bold after:outline-none after:duration-500 peer-checked:after:translate-x-6 peer-checked:after:border-white peer-focus:outline-none"></div>
+                    <span className="sidebar-settings-toggle-track" />
                 </label>
             </div>
             {/* Enable linting option */}
-            <div className="flex w-full items-center justify-between">
-                <div className="flex flex-col">
-                    <label>Code quality linting</label>
+            <div className="sidebar-settings-toggle-row">
+                <div className="min-w-0 flex flex-col">
+                    <span id="code-linting-label">Code quality linting</span>
                     <span className="text-xs text-white/40">
                         Real-time style &amp; error checks
                     </span>
                 </div>
-                <label className="relative inline-flex cursor-pointer items-center">
+                <label className="sidebar-settings-toggle">
                     <input
                         className="peer sr-only"
                         type="checkbox"
                         onChange={handleEnableLintingChange}
                         checked={enableLinting}
+                        aria-labelledby="code-linting-label"
                     />
-                    <div className="peer h-6 w-12 rounded-full bg-darkHover outline-none duration-100 after:absolute after:left-1 after:top-1 after:flex after:h-4 after:w-4 after:items-center after:justify-center after:rounded-full after:bg-white after:font-bold after:outline-none after:duration-500 peer-checked:after:translate-x-6 peer-checked:after:border-white peer-focus:outline-none"></div>
+                    <span className="sidebar-settings-toggle-track" />
                 </label>
             </div>
             <button
-                className="mt-auto w-full rounded-md border-none bg-darkHover px-4 py-2 text-white outline-none"
+                className="sidebar-panel-button sidebar-settings-reset"
                 onClick={resetSettings}
             >
                 Reset to default

@@ -1,7 +1,7 @@
 import { useFileSystem } from "@/context/FileContext"
 import { getIconClassName } from "@/utils/getIconClassName"
 import { Icon } from "@iconify/react"
-import { LuChevronRight } from "react-icons/lu"
+import { LuChevronRight, LuFolder } from "react-icons/lu"
 
 function BreadcrumbBar() {
     const { activeFile, getFilePath } = useFileSystem()
@@ -12,10 +12,12 @@ function BreadcrumbBar() {
     const parts = fullPath.split("/").filter(Boolean)
 
     return (
-        <div
-            className="flex h-[28px] select-none items-center gap-0.5 overflow-x-auto border-b border-darkHover bg-dark/80 px-3"
-            aria-label="File path"
-        >
+        <div className="editor-breadcrumbs" aria-label="File path">
+            <span className="breadcrumb-root">
+                <LuFolder size={12} />
+                workspace
+                <LuChevronRight size={11} />
+            </span>
             {parts.map((part, i) => {
                 const isLast = i === parts.length - 1
                 const isFile = isLast && activeFile.type === "file"

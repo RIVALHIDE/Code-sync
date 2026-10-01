@@ -35,7 +35,7 @@ function RecordingCard({
 
     return (
         <div
-            className={`flex flex-col gap-2 rounded-lg border p-3 transition-colors ${
+            className={`sidebar-recording-card flex flex-col gap-2 rounded-lg border p-3 transition-colors ${
                 isPlaying || isPaused
                     ? "border-primary/50 bg-primary/5"
                     : "border-white/10 bg-darkHover"
@@ -43,8 +43,8 @@ function RecordingCard({
         >
             {/* Title + meta */}
             <div className="flex items-start justify-between gap-2">
-                <div className="flex flex-col">
-                    <span className="text-sm font-medium text-white leading-tight">
+                <div className="min-w-0 flex flex-col">
+                    <span className="sidebar-recording-title">
                         {recording.title}
                     </span>
                     <span className="mt-0.5 text-xs text-white/40">
@@ -71,7 +71,7 @@ function RecordingCard({
             )}
 
             {/* Controls */}
-            <div className="flex items-center gap-2">
+            <div className="sidebar-recording-controls">
                 {!isPlaying && !isPaused && (
                     <button
                         onClick={() => playRecording(recording)}
@@ -175,16 +175,18 @@ function RecordingView() {
 
     return (
         <div
-            className="flex flex-col gap-3 p-4 overflow-y-auto"
+            className="sidebar-panel sidebar-panel--recordings"
             style={{ height: viewHeight }}
         >
-            <h1 className="view-title">Session Recordings</h1>
+            <div className="sidebar-panel-header">
+                <h1 className="sidebar-panel-title">Session Recordings</h1>
+            </div>
 
             {/* ── Recording controls ── */}
             {!isRecording && !isPlayingOrPaused && (
                 <button
                     onClick={handleStartRecording}
-                    className="flex w-full items-center justify-center gap-2 rounded-lg bg-red-600 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-red-700"
+                    className="sidebar-panel-button sidebar-panel-button--danger"
                 >
                     <MdFiberManualRecord size={18} />
                     Start Recording
@@ -207,7 +209,7 @@ function RecordingView() {
                     </p>
                     <button
                         onClick={handleStopClick}
-                        className="flex w-full items-center justify-center gap-2 rounded-md bg-red-600 py-2 text-sm font-semibold text-white transition-colors hover:bg-red-700"
+                        className="sidebar-panel-button sidebar-panel-button--danger"
                     >
                         <LuSquare size={14} />
                         Stop Recording
@@ -218,10 +220,11 @@ function RecordingView() {
             {/* ── Stop dialog ── */}
             {showStopDialog && (
                 <div className="flex flex-col gap-2 rounded-lg border border-white/10 bg-darkHover p-3">
-                    <label className="text-xs text-white/60">
+                    <label className="text-xs text-white/60" htmlFor="recording-title">
                         Name this recording:
                     </label>
                     <input
+                        id="recording-title"
                         autoFocus
                         type="text"
                         value={titleInput}
@@ -249,14 +252,14 @@ function RecordingView() {
 
             {/* ── Active playback editor ── */}
             {isPlayingOrPaused && currentRecording && (
-                <div className="flex flex-col gap-2">
-                    <div className="flex items-center justify-between">
-                        <span className="text-xs font-medium text-primary">
+                <div className="sidebar-recording-playback flex flex-col gap-2">
+                    <div className="sidebar-panel-row">
+                        <span className="sidebar-recording-now-playing text-xs font-medium text-primary">
                             ▶ Playing: {currentRecording.title}
                         </span>
                         <button
                             onClick={stopPlayback}
-                            className="text-xs text-white/40 hover:text-red-400"
+                            className="sidebar-panel-icon-button text-xs text-white/40 hover:text-red-400"
                         >
                             Stop
                         </button>
@@ -286,7 +289,7 @@ function RecordingView() {
             {/* ── Saved recordings list ── */}
             <div className="flex flex-col gap-2">
                 {savedRecordings.length === 0 ? (
-                    <p className="text-center text-sm text-white/30 py-4">
+                    <p className="sidebar-panel-empty">
                         No recordings yet. Start a session above.
                     </p>
                 ) : (

@@ -35,41 +35,41 @@ function FileTab() {
     }, [])
 
     return (
-        <div
-            className="flex h-[46px] w-full select-none gap-1 overflow-x-auto border-b border-darkHover bg-dark px-2 pb-0 pt-1.5"
-            ref={fileTabRef}
-        >
+        <div className="editor-tabs" aria-label="Open files" ref={fileTabRef}>
             {openFiles.map((file) => {
                 const isActive = file.id === activeFile?.id
                 return (
-                    <span
+                    <div
                         key={file.id}
-                        className={cn(
-                            "group flex w-fit max-w-[180px] cursor-pointer items-center gap-1.5 rounded-t-md border-t-2 px-3 py-1 text-sm transition-colors",
-                            isActive
-                                ? "border-primary bg-darkHover text-white"
-                                : "border-transparent text-gray-400 hover:bg-darkHover/50 hover:text-gray-200",
-                        )}
-                        onClick={() => changeActiveFile(file.id)}
-                        title={file.name}
+                        className={cn("editor-tab group", {
+                            "is-active": isActive,
+                        })}
                     >
-                        <Icon
-                            icon={getIconClassName(file.name)}
-                            fontSize={15}
-                            className="flex-shrink-0"
-                        />
-                        <p className="flex-grow truncate text-xs font-medium">
-                            {file.name}
-                        </p>
-                        {/* Dirty indicator dot */}
-                        {file.isDirty && (
-                            <span
-                                className="h-1.5 w-1.5 flex-shrink-0 rounded-full bg-primary"
-                                title="Unsaved changes"
-                                aria-label="Unsaved changes"
+                        <button
+                            className="editor-tab-select"
+                            onClick={() => changeActiveFile(file.id)}
+                            title={file.name}
+                            aria-label={`Open ${file.name}`}
+                            aria-pressed={isActive}
+                        >
+                            <Icon
+                                icon={getIconClassName(file.name)}
+                                fontSize={15}
+                                className="flex-shrink-0"
                             />
-                        )}
-                        {/* Close button — always visible on active, hover-visible otherwise */}
+                            <span className="truncate text-xs font-medium">
+                                {file.name}
+                            </span>
+                            {/* Dirty indicator dot */}
+                            {file.isDirty && (
+                                <span
+                                    className="h-1.5 w-1.5 flex-shrink-0 rounded-full bg-primary"
+                                    title="Unsaved changes"
+                                    aria-label="Unsaved changes"
+                                />
+                            )}
+                        </button>
+                        {/* Keep file switching and closing as separate keyboard-accessible buttons. */}
                         <button
                             className={cn(
                                 "flex-shrink-0 rounded p-0.5 transition-colors",
@@ -85,7 +85,7 @@ function FileTab() {
                         >
                             <IoClose size={14} />
                         </button>
-                    </span>
+                    </div>
                 )
             })}
         </div>

@@ -16,7 +16,6 @@ import { useFileSystem } from "@/context/FileContext"
 import { useViews } from "@/context/ViewContext"
 import { useContextMenu } from "@/hooks/useContextMenu"
 import useWindowDimensions from "@/hooks/useWindowDimensions"
-import useResponsive from "@/hooks/useResponsive"
 import { ACTIVITY_STATE } from "@/types/app"
 import { FileSystemItem, Id } from "@/types/file"
 import { sortFileSystemItem } from "@/utils/file"
@@ -68,7 +67,6 @@ function FileStructureView({ onSearchOpen, onNewProject }: FileStructureViewProp
         collapseDirectories,
     } = useFileSystem()
 
-    const { minHeightReached } = useResponsive()
     const explorerRef = useRef<HTMLDivElement>(null)
     const [selectedDirId, setSelectedDirId] = useState<Id>(fileStructure.id)
     const [pending, setPending] = useState<PendingCreation | null>(null)
@@ -94,7 +92,6 @@ function FileStructureView({ onSearchOpen, onNewProject }: FileStructureViewProp
     // ------------------------------------------------------------------
     // Ensure a directory is open (never close it when we need to add inside)
     // ------------------------------------------------------------------
-    const { fileStructure: fs } = useFileSystem() // keep in scope for openDirIds
     const ensureOpen = useFileSystem().toggleDirectory
 
     const openDir = (dirId: Id) => {
@@ -134,7 +131,7 @@ function FileStructureView({ onSearchOpen, onNewProject }: FileStructureViewProp
     const sorted = sortFileSystemItem(fileStructure)
 
     return (
-        <div className="flex flex-grow flex-col overflow-hidden">
+        <div className="flex min-h-0 flex-grow flex-col overflow-hidden">
             {/* ── Toolbar ── */}
             <div className="view-title flex items-center justify-between py-0.5">
                 <span className="text-xs font-semibold uppercase tracking-widest text-gray-400">
@@ -172,13 +169,7 @@ function FileStructureView({ onSearchOpen, onNewProject }: FileStructureViewProp
             {/* ── Tree ── */}
             <div
                 ref={explorerRef}
-                className={cn(
-                    "relative flex-grow select-none overflow-y-auto overflow-x-hidden",
-                    {
-                        "h-[calc(80vh-170px)]": !minHeightReached,
-                        "h-[85vh]": minHeightReached,
-                    },
-                )}
+                className="relative min-h-0 flex-grow select-none overflow-y-auto overflow-x-hidden"
             >
                 {/* Root-level inline creation (when selectedDirId is root) */}
                 {pending && pending.parentDirId === fileStructure.id && (

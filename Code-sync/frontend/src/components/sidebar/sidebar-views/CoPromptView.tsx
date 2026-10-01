@@ -20,10 +20,12 @@ function HistoryItem({ entry }: { entry: PromptHistoryEntry }) {
     const [expanded, setExpanded] = useState(false)
 
     return (
-        <div className="flex flex-col gap-1 rounded-lg border border-white/10 bg-darkHover p-3">
-            <div
-                className="flex cursor-pointer items-center justify-between gap-2"
+        <div className="sidebar-prompt-history-item flex flex-col gap-1 rounded-lg border border-white/10 bg-darkHover p-3">
+            <button
+                type="button"
+                className="flex min-w-0 items-center justify-between gap-2 text-left"
                 onClick={() => setExpanded((v) => !v)}
+                aria-expanded={expanded}
             >
                 <div className="flex flex-col gap-0.5 overflow-hidden">
                     <span className="truncate text-xs font-medium text-white/80">
@@ -38,9 +40,9 @@ function HistoryItem({ entry }: { entry: PromptHistoryEntry }) {
                     ? <LuChevronUp size={14} className="shrink-0 text-white/40" />
                     : <LuChevronDown size={14} className="shrink-0 text-white/40" />
                 }
-            </div>
+            </button>
             {expanded && (
-                <div className="mt-2 text-sm text-white/80">
+                <div className="sidebar-panel-markdown mt-2 text-white/80">
                     <ReactMarkdown
                         components={{
                             // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -112,14 +114,14 @@ function CoPromptView() {
 
     return (
         <div
-            className="flex flex-col gap-3 overflow-y-auto p-4"
+            className="sidebar-panel sidebar-panel--coprompt"
             style={{ height: viewHeight }}
         >
             {/* Header */}
-            <div className="flex items-center justify-between">
+            <div className="sidebar-panel-header">
                 <div className="flex items-center gap-2">
                     <PiMagicWand size={18} className="text-primary" />
-                    <h1 className="view-title mb-0">Co-Prompt AI</h1>
+                    <h1 className="sidebar-panel-title">Co-Prompt AI</h1>
                 </div>
                 {remoteCursors.length > 0 && (
                     <div className="flex items-center gap-1 rounded-full bg-primary/10 px-2 py-1">
@@ -137,7 +139,7 @@ function CoPromptView() {
                     {remoteCursors.map((c) => (
                         <span
                             key={c.username}
-                            className="rounded-full px-2 py-0.5 text-xs font-medium text-dark"
+                            className="max-w-full break-words rounded-full px-2 py-0.5 text-xs font-medium text-dark"
                             style={{ backgroundColor: c.color }}
                         >
                             {c.username}
@@ -149,12 +151,12 @@ function CoPromptView() {
 
             {/* Shared prompt textarea */}
             <div className="relative flex flex-col rounded-lg border border-primary/30 bg-darkHover focus-within:border-primary/60 transition-colors">
-                <div className="flex items-center justify-between border-b border-white/10 px-3 py-1.5">
+                <div className="flex min-w-0 items-center justify-between gap-2 border-b border-white/10 px-3 py-1.5">
                     <span className="text-xs text-white/40">Shared prompt — everyone edits together</span>
                     <button
                         onClick={clearPrompt}
                         title="Clear prompt"
-                        className="text-white/30 transition-colors hover:text-red-400"
+                        className="sidebar-panel-icon-button text-white/30 transition-colors hover:text-red-400"
                     >
                         <LuTrash2 size={13} />
                     </button>
@@ -166,7 +168,8 @@ function CoPromptView() {
                     onKeyDown={handleKeyDown}
                     placeholder="Write your AI prompt here… everyone in the room sees and can edit this in real time.&#10;&#10;Tip: Link code files below to give the AI context. Press Ctrl+Enter to submit."
                     disabled={isSubmitting}
-                    className="min-h-[120px] w-full resize-none bg-transparent p-3 text-sm text-white placeholder-white/25 outline-none disabled:opacity-50"
+                    aria-label="Shared AI prompt"
+                    className="sidebar-prompt-input min-h-[132px] w-full resize-y bg-transparent p-3 text-white placeholder-white/25 outline-none disabled:opacity-50"
                 />
                 {/* Character count */}
                 <div className="flex justify-end px-3 pb-1.5">
@@ -176,7 +179,7 @@ function CoPromptView() {
 
             {/* Linked code blocks */}
             <div className="flex flex-col gap-2">
-                <div className="flex items-center justify-between">
+                <div className="sidebar-panel-row sidebar-panel-row--wrap">
                     <span className="text-xs font-medium text-white/50">
                         Linked files ({linkedBlocks.length})
                     </span>
@@ -198,7 +201,7 @@ function CoPromptView() {
                 {linkedBlocks.map((block) => (
                     <div
                         key={block.id}
-                        className="flex items-start gap-2 rounded-lg border border-white/10 bg-darkHover p-2"
+                        className="sidebar-prompt-linked-file flex min-w-0 items-start gap-2 rounded-lg border border-white/10 bg-darkHover p-2"
                     >
                         <div className="flex flex-1 flex-col gap-0.5 overflow-hidden">
                             <div className="flex items-center gap-2">
@@ -232,7 +235,7 @@ function CoPromptView() {
             <button
                 onClick={submitPrompt}
                 disabled={isSubmitting || !promptText.trim()}
-                className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary py-2.5 text-sm font-semibold text-dark transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+                className="sidebar-panel-button sidebar-panel-button--primary sidebar-prompt-submit"
             >
                 {isSubmitting ? (
                     <>
@@ -243,20 +246,20 @@ function CoPromptView() {
                     <>
                         <LuSend size={15} />
                         Submit to AI
-                        <span className="ml-1 text-xs opacity-60">(Ctrl+Enter)</span>
+                        <span className="sidebar-prompt-shortcut">Ctrl+Enter</span>
                     </>
                 )}
             </button>
 
             {/* AI Response */}
             {aiResponse && (
-                <div ref={responseRef} className="flex flex-col gap-2 rounded-lg border border-primary/20 bg-dark p-3">
-                    <div className="flex items-center gap-2">
+                <div ref={responseRef} className="sidebar-prompt-response flex min-w-0 flex-col gap-2 rounded-lg border border-primary/20 bg-dark p-3">
+                    <div className="flex flex-wrap items-center gap-2">
                         <PiMagicWand size={14} className="text-primary" />
                         <span className="text-xs font-semibold text-primary">AI Response</span>
                         <span className="ml-auto text-xs text-white/30">(shared with room)</span>
                     </div>
-                    <div className="text-sm text-white/85">
+                    <div className="sidebar-panel-markdown text-white/85">
                         <ReactMarkdown
                             components={{
                                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -290,6 +293,7 @@ function CoPromptView() {
                 <div className="flex flex-col gap-2">
                     <button
                         onClick={() => setShowHistory((v) => !v)}
+                        aria-expanded={showHistory}
                         className="flex items-center gap-2 text-xs text-white/40 hover:text-white/60 transition-colors"
                     >
                         {showHistory ? <LuChevronUp size={13} /> : <LuChevronDown size={13} />}

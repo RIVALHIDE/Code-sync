@@ -45,35 +45,40 @@ function UsersView() {
     }
 
     return (
-        <div className="flex flex-col p-4" style={{ height: viewHeight }}>
-            <h1 className="view-title">Users</h1>
+        <div className="sidebar-panel sidebar-panel--users" style={{ height: viewHeight }}>
+            <div className="sidebar-panel-header">
+                <h1 className="sidebar-panel-title">People in this room</h1>
+            </div>
             {/* List of connected users */}
             <Users />
-            <div className="flex flex-col items-center gap-4 pt-4">
-                <div className="flex w-full gap-4">
+            <div className="sidebar-panel-footer">
+                <div className="sidebar-users-actions">
                     {/* Share URL button */}
                     <button
-                        className="flex flex-grow items-center justify-center rounded-md bg-white p-3 text-black"
+                        className="sidebar-panel-button"
                         onClick={shareURL}
                         title="Share Link"
                     >
-                        <IoShareOutline size={26} />
+                        <IoShareOutline size={15} />
+                        <span>Share</span>
                     </button>
                     {/* Copy URL button */}
                     <button
-                        className="flex flex-grow items-center justify-center rounded-md bg-white p-3 text-black"
+                        className="sidebar-panel-button"
                         onClick={copyURL}
                         title="Copy Link"
                     >
-                        <LuCopy size={22} />
+                        <LuCopy size={14} />
+                        <span>Copy</span>
                     </button>
                     {/* Leave room button */}
                     <button
-                        className="flex flex-grow items-center justify-center rounded-md bg-primary p-3 text-black"
+                        className="sidebar-panel-button sidebar-panel-button--danger"
                         onClick={leaveRoom}
                         title="Leave room"
                     >
-                        <GoSignOut size={22} />
+                        <GoSignOut size={14} />
+                        <span>Leave</span>
                     </button>
                 </div>
             </div>

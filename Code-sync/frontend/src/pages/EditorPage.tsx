@@ -2,6 +2,8 @@ import SplitterComponent from "@/components/SplitterComponent"
 import ConnectionStatusPage from "@/components/connection/ConnectionStatusPage"
 import Sidebar from "@/components/sidebar/Sidebar"
 import WorkSpace from "@/components/workspace"
+import WorkspaceHeader from "@/components/workspace/WorkspaceHeader"
+import WorkspaceStatusBar from "@/components/workspace/WorkspaceStatusBar"
 import { useAppContext } from "@/context/AppContext"
 import { useSocket } from "@/context/SocketContext"
 import useFullScreen from "@/hooks/useFullScreen"
@@ -9,7 +11,12 @@ import useUserActivity from "@/hooks/useUserActivity"
 import { SocketEvent } from "@/types/socket"
 import { USER_STATUS, User } from "@/types/user"
 import { useEffect } from "react"
-import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom"
+import {
+    useLocation,
+    useNavigate,
+    useParams,
+    useSearchParams,
+} from "react-router-dom"
 
 function EditorPage() {
     // Listen user online/offline status
@@ -25,7 +32,8 @@ function EditorPage() {
 
     useEffect(() => {
         if (currentUser.username.length > 0) return
-        const username = location.state?.username || searchParams.get("username")
+        const username =
+            location.state?.username || searchParams.get("username")
         if (username === null || username === "") {
             navigate("/", {
                 state: { roomId },
@@ -50,10 +58,16 @@ function EditorPage() {
     }
 
     return (
-        <SplitterComponent>
-            <Sidebar />
-            <WorkSpace/>
-        </SplitterComponent>
+        <div className="workspace-shell">
+            <WorkspaceHeader />
+            <div className="workspace-body">
+                <SplitterComponent>
+                    <Sidebar />
+                    <WorkSpace />
+                </SplitterComponent>
+            </div>
+            <WorkspaceStatusBar />
+        </div>
     )
 }
 

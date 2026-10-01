@@ -40,7 +40,7 @@ function EntryRow({ entry }: { entry: TranscriptEntry }) {
     return (
         <div
             className={cn(
-                "flex flex-col gap-0.5 rounded-lg border px-3 py-2",
+                "sidebar-voice-entry flex flex-col gap-0.5 rounded-lg border px-3 py-2",
                 {
                     "border-primary/20 bg-primary/5": entry.type === "dictation",
                     "border-yellow-400/20 bg-yellow-400/5": entry.type === "command",
@@ -48,9 +48,9 @@ function EntryRow({ entry }: { entry: TranscriptEntry }) {
                 },
             )}
         >
-            <div className="flex items-start justify-between gap-2">
+            <div className="sidebar-voice-entry-heading">
                 <span
-                    className={cn("text-sm leading-snug", {
+                    className={cn("min-w-0 leading-snug", {
                         "text-white/85": entry.type === "dictation",
                         "font-mono text-yellow-300": entry.type === "command",
                         "text-red-400": entry.type === "error",
@@ -117,7 +117,7 @@ function CommandRef() {
                     </span>
                     <div className="flex flex-col gap-0.5">
                         {group.commands.map(([cmd, desc]) => (
-                            <div key={cmd} className="flex items-start justify-between gap-2">
+                            <div key={cmd} className="sidebar-voice-command">
                                 <code className="rounded bg-white/10 px-1.5 py-0.5 text-xs font-mono text-white/80 leading-snug">
                                     {cmd}
                                 </code>
@@ -165,13 +165,13 @@ function VoiceView() {
 
     return (
         <div
-            className="flex flex-col gap-4 overflow-y-auto p-4"
+            className="sidebar-panel sidebar-panel--voice"
             style={{ height: viewHeight }}
         >
             {/* Header */}
-            <div className="flex items-center gap-2">
-                <PiWaveform size={20} className="text-primary" />
-                <h1 className="view-title mb-0">Voice to Code</h1>
+            <div className="sidebar-panel-header sidebar-panel-header--start">
+                <PiWaveform size={18} className="text-primary" />
+                <h1 className="sidebar-panel-title">Voice to Code</h1>
             </div>
 
             {/* Browser support warning */}
@@ -207,8 +207,8 @@ function VoiceView() {
             )}
 
             {/* Status bar */}
-            <div className="flex items-center justify-between rounded-lg border border-white/10 bg-darkHover px-3 py-2">
-                <div className="flex items-center gap-2">
+            <div className="sidebar-voice-status flex flex-wrap items-center justify-between gap-2 rounded-lg border border-white/10 bg-darkHover px-3 py-2">
+                <div className="flex min-w-0 items-center gap-2">
                     <StatusDot status={status} />
                     <span className="text-xs text-white/60">{statusLabel[status]}</span>
                 </div>
@@ -220,13 +220,13 @@ function VoiceView() {
             </div>
 
             {/* Mic button */}
-            <div className="flex flex-col items-center gap-3">
+            <div className="sidebar-voice-mic-area">
                 <button
                     onClick={isListening ? stopListening : startListening}
                     disabled={!isSupported || !activeFile}
                     aria-label={isListening ? "Stop listening" : "Start listening"}
                     className={cn(
-                        "flex h-20 w-20 items-center justify-center rounded-full border-4 transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-40",
+                        "sidebar-voice-mic flex items-center justify-center rounded-full border transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-40",
                         {
                             "border-red-400 bg-red-400/20 shadow-[0_0_24px_rgba(248,113,113,0.4)] hover:bg-red-400/30":
                                 isListening,
@@ -236,9 +236,9 @@ function VoiceView() {
                     )}
                 >
                     {isListening ? (
-                        <LuMicOff size={32} className="text-red-400" />
+                        <LuMicOff size={24} className="text-red-400" />
                     ) : (
-                        <LuMic size={32} className="text-primary" />
+                        <LuMic size={24} className="text-primary" />
                     )}
                 </button>
 
@@ -250,8 +250,8 @@ function VoiceView() {
             </div>
 
             {/* Continuous mode toggle */}
-            <div className="flex items-center justify-between rounded-lg border border-white/10 bg-darkHover px-3 py-2">
-                <div className="flex flex-col">
+            <div className="flex items-center justify-between gap-3 rounded-lg border border-white/10 bg-darkHover px-3 py-2">
+                <div className="min-w-0 flex flex-col">
                     <span className="text-xs font-medium text-white/70">Continuous mode</span>
                     <span className="text-xs text-white/30">
                         Keep mic open between phrases
@@ -259,19 +259,20 @@ function VoiceView() {
                 </div>
                 <button
                     role="switch"
+                    aria-label="Continuous mode"
                     aria-checked={continuous}
                     onClick={() => {
                         if (isListening) stopListening()
                         setContinuous(!continuous)
                     }}
                     className={cn(
-                        "relative h-5 w-9 rounded-full transition-colors duration-200",
+                        "relative h-5 w-9 shrink-0 rounded-full transition-colors duration-200",
                         continuous ? "bg-primary" : "bg-white/20",
                     )}
                 >
                     <span
                         className={cn(
-                            "absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform duration-200",
+                            "absolute left-0 top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform duration-200",
                             continuous ? "translate-x-4" : "translate-x-0.5",
                         )}
                     />
@@ -321,6 +322,7 @@ function VoiceView() {
             <div className="flex flex-col gap-2 rounded-lg border border-white/10 bg-darkHover p-3">
                 <button
                     onClick={() => setShowCommands((v) => !v)}
+                    aria-expanded={showCommands}
                     className="flex items-center justify-between text-xs font-medium text-white/50 hover:text-white/70 transition-colors"
                 >
                     <span className="flex items-center gap-1.5">

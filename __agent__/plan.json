@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "items": [
+    {
+      "title": "Inspect the project, identify the app, and establish current issues",
+      "status": "in-progress"
+    },
+    {
+      "title": "Fix verified UI and functional issues",
+      "status": "pending"
+    },
+    {
+      "title": "Run checks and review the resulting changes",
+      "status": "pending"
+    }
+  ],
+  "updated_at": "2026-10-01T08:41:07.959Z",
+  "session_id": "01a0f695-cf30-7228-842f-d0c10aff337a"
+}

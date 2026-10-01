@@ -234,9 +234,14 @@ function FilesView() {
     return (
         <>
             <div
-                className="flex select-none flex-col gap-1 px-3 py-2"
+                className="files-panel flex min-h-0 select-none flex-col gap-3 p-4"
                 style={{ height: viewHeight, maxHeight: viewHeight }}
             >
+                <div className="files-panel-intro">
+                    <span className="workspace-eyebrow">PROJECT</span>
+                    <h2>Your workspace</h2>
+                    <p>Everything you need to build, in one place.</p>
+                </div>
                 {/* ── Search panel (inline, collapses) ── */}
                 {showSearch && (
                     <FileSearchPanel onClose={() => setShowSearch(false)} />

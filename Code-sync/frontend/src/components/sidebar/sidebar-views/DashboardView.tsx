@@ -183,7 +183,7 @@ function StatCell({
     value: string
 }) {
     return (
-        <div className="flex flex-col items-center gap-0.5 rounded bg-darkHover py-2">
+        <div className="sidebar-dashboard-stat flex min-w-0 flex-col items-center gap-0.5 rounded bg-darkHover px-1 py-2">
             <div className="flex items-center gap-1">
                 {icon}
                 <span className="text-xs font-semibold text-white">{value}</span>
@@ -203,7 +203,7 @@ function MilestoneChip({
     count: number
 }) {
     return (
-        <span className="flex items-center gap-1 rounded bg-darkHover px-2 py-1 text-gray-300">
+        <span className="sidebar-dashboard-milestone flex min-w-0 items-center gap-1 rounded bg-darkHover px-2 py-1 text-gray-300">
             {icon}
             <span className="text-xs">{label}</span>
             <span className="ml-auto text-xs font-semibold text-white">{count}</span>
@@ -224,25 +224,25 @@ function StudentCard({ student }: { student: StudentSummary }) {
               : "bg-green-500/20 text-green-400"
 
     return (
-        <div className="rounded-lg border border-darkHover bg-dark/60 p-3">
+        <div className="sidebar-dashboard-student rounded-lg border border-darkHover bg-dark/60 p-3">
             {/* Header row */}
             <button
-                className="flex w-full items-center justify-between gap-2"
+                className="sidebar-dashboard-student-heading"
                 onClick={() => setExpanded((v) => !v)}
                 aria-expanded={expanded}
             >
-                <div className="flex min-w-0 flex-1 items-center gap-2">
+                <div className="sidebar-dashboard-student-identity">
                     <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-primary/20 text-xs font-bold text-primary">
                         {student.username.slice(0, 1).toUpperCase()}
                     </div>
-                    <span className="truncate text-sm font-medium text-white">
+                    <span className="min-w-0 flex-1 truncate text-left text-xs font-medium text-white" title={student.username}>
                         {student.username}
                     </span>
-                    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${badgeColor}`}>
+                    <span className={`shrink-0 whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium ${badgeColor}`}>
                         {errorPct}% err
                     </span>
                 </div>
-                <div className="flex flex-shrink-0 items-center gap-3 text-xs text-gray-400">
+                <div className="sidebar-dashboard-student-meta text-xs text-gray-400">
                     <span title="Coding time">{fmtMs(student.totalTimeMs)}</span>
                     <span title="Total runs">{student.totalRuns} runs</span>
                     {expanded ? (
@@ -298,7 +298,7 @@ function StudentCard({ student }: { student: StudentSummary }) {
                     {/* Milestones */}
                     <div>
                         <p className="mb-1 text-xs text-gray-400">Activity</p>
-                        <div className="grid grid-cols-2 gap-1 text-xs">
+                        <div className="sidebar-dashboard-milestones">
                             <MilestoneChip
                                 icon={<LuFileCode2 size={11} />}
                                 label="Files created"
@@ -371,7 +371,7 @@ function OverviewTile({
     value: string
 }) {
     return (
-        <div className="flex items-center gap-2 rounded bg-dark/60 px-2 py-2">
+        <div className="sidebar-dashboard-overview-tile flex min-w-0 items-start gap-2 rounded bg-dark/60 px-2 py-2">
             {icon}
             <div className="min-w-0">
                 <p className="text-xs text-gray-400">{label}</p>
@@ -454,16 +454,17 @@ function ActivityChart({ ts }: { ts: TimeSeriesPayload }) {
 
     return (
         <div className="rounded-lg border border-darkHover bg-darkHover/50 p-3">
-            <div className="mb-2 flex items-center justify-between">
+            <div className="sidebar-dashboard-chart-heading">
                 <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-gray-400">
                     <LuActivity size={12} />
                     Activity over time
                 </p>
-                <div className="flex gap-1">
+                <div className="sidebar-dashboard-chart-tabs" aria-label="Activity metric">
                     {tabs.map((t) => (
                         <button
                             key={t.key}
                             onClick={() => setTab(t.key)}
+                            aria-pressed={tab === t.key}
                             className={`flex items-center gap-1 rounded px-2 py-0.5 text-xs transition-colors ${
                                 tab === t.key
                                     ? "bg-primary/20 text-primary"
@@ -477,7 +478,7 @@ function ActivityChart({ ts }: { ts: TimeSeriesPayload }) {
                 </div>
             </div>
 
-            <div className="h-36">
+            <div className="sidebar-dashboard-chart h-36">
                 {tab === "runs" && (
                     <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={data} barSize={8} margin={{ top: 4, right: 4, left: -24, bottom: 0 }}>
@@ -636,7 +637,7 @@ function RecentRunsPanel({ runs }: { runs: CodeRunRow[] }) {
                 {visible.map((r) => (
                     <li
                         key={r.id}
-                        className={`flex items-center gap-2 rounded px-2 py-1.5 text-xs ${
+                        className={`sidebar-dashboard-run rounded px-2 py-2 text-xs ${
                             r.success
                                 ? "bg-green-950/20 ring-1 ring-green-500/15"
                                 : "bg-red-950/20 ring-1 ring-red-500/15"
@@ -644,28 +645,28 @@ function RecentRunsPanel({ runs }: { runs: CodeRunRow[] }) {
                     >
                         {/* pass / fail dot */}
                         <span
-                            className={`h-1.5 w-1.5 flex-shrink-0 rounded-full ${
+                            className={`sidebar-dashboard-run-dot h-1.5 w-1.5 rounded-full ${
                                 r.success ? "bg-green-400" : "bg-red-400"
                             }`}
                         />
 
                         {/* user */}
-                        <span className="w-20 flex-shrink-0 truncate font-medium text-white">
+                        <span className="sidebar-dashboard-run-user truncate font-medium text-white" title={r.username}>
                             {r.username}
                         </span>
 
                         {/* language badge */}
-                        <span className="rounded bg-darkHover px-1.5 py-0.5 text-gray-300">
+                        <span className="sidebar-dashboard-run-language rounded bg-darkHover px-1.5 py-0.5 text-gray-300">
                             {r.language}
                         </span>
 
                         {/* file name */}
-                        <span className="flex-1 truncate text-gray-400">{r.file_name}</span>
+                        <span className="sidebar-dashboard-run-file truncate text-gray-400" title={r.file_name}>{r.file_name}</span>
 
                         {/* error preview */}
                         {!r.success && r.error_text && (
                             <span
-                                className="max-w-[120px] truncate text-red-400"
+                                className="sidebar-dashboard-run-error truncate text-red-400"
                                 title={r.error_text}
                             >
                                 {r.error_text.slice(0, 40)}
@@ -673,7 +674,7 @@ function RecentRunsPanel({ runs }: { runs: CodeRunRow[] }) {
                         )}
 
                         {/* timestamp */}
-                        <span className="flex-shrink-0 text-gray-500">
+                        <span className="sidebar-dashboard-run-time text-gray-500">
                             {fmtTime(r.ran_at)}
                         </span>
                     </li>
@@ -723,18 +724,18 @@ function DashboardView() {
 
     return (
         <div
-            className="flex flex-col gap-3 overflow-y-auto p-4"
+            className="sidebar-panel sidebar-panel--dashboard"
             style={{ height: viewHeight }}
         >
             {/* ── Header ── */}
-            <div className="flex items-center justify-between">
-                <h1 className="view-title">Analytics</h1>
+            <div className="sidebar-panel-header">
+                <h1 className="sidebar-panel-title">Analytics</h1>
                 <div className="flex items-center gap-1">
                     {roomSummary && (
                         <button
                             onClick={handleExport}
                             title="Export CSV"
-                            className="rounded p-1.5 text-gray-400 transition-colors hover:bg-darkHover hover:text-white"
+                            className="sidebar-panel-icon-button"
                             aria-label="Export analytics as CSV"
                         >
                             <LuDownload size={15} />
@@ -744,7 +745,7 @@ function DashboardView() {
                         onClick={refresh}
                         disabled={isLoading}
                         title="Refresh"
-                        className="rounded p-1.5 text-gray-400 transition-colors hover:bg-darkHover hover:text-white disabled:opacity-40"
+                        className="sidebar-panel-icon-button"
                         aria-label="Refresh analytics"
                     >
                         <LuRefreshCw

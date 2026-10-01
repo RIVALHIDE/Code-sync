@@ -14,15 +14,14 @@ function VideoTile({ participant, isLocal = false }: VideoTileProps) {
     useEffect(() => {
         const videoElement = videoRef.current
         if (videoElement && participant.stream) {
-            console.log(`[VideoTile] Attaching stream for ${participant.username}`, participant.stream)
             videoElement.srcObject = participant.stream
-            
-            // Force play after stream is attached
             videoElement.play().catch((err) => {
-                console.error(`[VideoTile] Failed to play video for ${participant.username}:`, err)
+                console.error(
+                    `[VideoTile] Failed to play video for ${participant.username}:`,
+                    err,
+                )
             })
         }
-        
         return () => {
             if (videoElement) {
                 videoElement.srcObject = null
@@ -31,44 +30,61 @@ function VideoTile({ participant, isLocal = false }: VideoTileProps) {
     }, [participant.stream, participant.username])
 
     return (
-        <div className="relative flex flex-col overflow-hidden rounded-lg bg-darkHover">
-            {participant.isVideoOff || !participant.stream ? (
-                <div className="flex h-full min-h-[120px] w-full items-center justify-center bg-darkHover">
-                    <div className="flex flex-col items-center gap-2">
-                        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary text-lg font-bold text-dark">
-                            {participant.username.charAt(0).toUpperCase()}
-                        </div>
-                        <span className="text-xs text-white/70">
-                            {participant.isVideoOff ? "Camera off" : "Connecting..."}
-                        </span>
-                    </div>
-                </div>
-            ) : (
+        <article
+            className="video-tile"
+            aria-label={`${participant.username}${isLocal ? " (You)" : ""}`}
+        >
+            <div className="video-tile-frame">
+                {/* Keep this element mounted so camera toggles retain srcObject and
+                    remote audio continues playing while the camera is off. */}
                 <video
                     ref={videoRef}
                     autoPlay
                     playsInline
-                    muted={isLocal} // always mute local to avoid feedback
-                    className="h-full w-full object-cover"
+                    muted={isLocal}
+                    aria-label={`${participant.username}'s camera`}
+                    className={`video-tile-feed ${isLocal ? "is-local" : ""} ${participant.isVideoOff || !participant.stream ? "is-hidden" : ""}`}
                 />
-            )}
-
-            {/* Name + status badges */}
-            <div className="absolute bottom-0 left-0 right-0 flex items-center justify-between bg-gradient-to-t from-black/70 to-transparent px-2 py-1">
-                <span className="truncate text-xs font-medium text-white">
+                {(participant.isVideoOff || !participant.stream) && (
+                    <div className="video-tile-placeholder">
+                        <span className="video-participant-avatar">
+                            {participant.username.slice(0, 2).toUpperCase() ||
+                                "?"}
+                        </span>
+                        <span>
+                            {participant.isVideoOff
+                                ? "Camera off"
+                                : "Connecting…"}
+                        </span>
+                    </div>
+                )}
+            </div>
+            <div className="video-tile-meta">
+                <span
+                    className="video-participant-name"
+                    title={participant.username}
+                >
                     {participant.username}
-                    {isLocal && " (You)"}
                 </span>
-                <div className="flex items-center gap-1">
+                {isLocal && <span className="video-self-badge">You</span>}
+                <span className="video-participant-status">
                     {participant.isMuted && (
-                        <BsMicMuteFill size={12} className="text-red-400" />
+                        <BsMicMuteFill
+                            size={12}
+                            title="Microphone muted"
+                            aria-label="Microphone muted"
+                        />
                     )}
                     {participant.isVideoOff && (
-                        <FaVideoSlash size={12} className="text-red-400" />
+                        <FaVideoSlash
+                            size={12}
+                            title="Camera off"
+                            aria-label="Camera off"
+                        />
                     )}
-                </div>
+                </span>
             </div>
-        </div>
+        </article>
     )
 }
 

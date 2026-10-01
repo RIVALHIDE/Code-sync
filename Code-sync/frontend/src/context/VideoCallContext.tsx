@@ -23,19 +23,12 @@ export const useVideoCall = (): VideoCallContextType => {
     return context
 }
 
+// STUN servers for ICE candidate gathering (Google's public STUN servers)
 const ICE_SERVERS = {
     iceServers: [
         { urls: "stun:stun.l.google.com:19302" },
         { urls: "stun:stun1.l.google.com:19302" },
     ],
-}
-
-// Per-peer state for perfect negotiation
-interface PeerState {
-    pc: RTCPeerConnection
-    makingOffer: boolean
-    ignoreOffer: boolean
-    polite: boolean   // polite peer defers when collision happens
 }
 
 function VideoCallContextProvider({ children }: { children: ReactNode }) {
@@ -49,121 +42,138 @@ function VideoCallContextProvider({ children }: { children: ReactNode }) {
     const [localStream, setLocalStream] = useState<MediaStream | null>(null)
     const [isRecordingCall, setIsRecordingCall] = useState(false)
 
+    // Map of socketId -> RTCPeerConnection
+    const peerConnections = useRef<Map<string, RTCPeerConnection>>(new Map())
+    // Trickle ICE can arrive before the offer or while remote SDP is being applied.
+    const pendingCandidates = useRef<Map<string, RTCIceCandidateInit[]>>(new Map())
+    // Keep localStream in a ref so callbacks always see latest value
     const localStreamRef = useRef<MediaStream | null>(null)
-    // Map socketId → PeerState
-    const peers = useRef<Map<string, PeerState>>(new Map())
+    const isJoiningCall = useRef(false)
 
     // Video recording refs
     const callMediaRecorder = useRef<MediaRecorder | null>(null)
     const callRecordingChunks = useRef<Blob[]>([])
 
-    // ── Create peer connection with Perfect Negotiation ────────────────────────
-    const createPeer = useCallback(
-        (remoteSocketId: string, remoteUsername: string, polite: boolean): PeerState => {
-            // Close existing if any
-            const existing = peers.current.get(remoteSocketId)
-            if (existing) {
-                existing.pc.close()
-                peers.current.delete(remoteSocketId)
-            }
+    const createPeerConnection = useCallback(
+        (remoteSocketId: string, remoteUsername: string): RTCPeerConnection => {
+            const existing = peerConnections.current.get(remoteSocketId)
+            if (existing) return existing
 
             const pc = new RTCPeerConnection(ICE_SERVERS)
-            const state: PeerState = { pc, makingOffer: false, ignoreOffer: false, polite }
-            peers.current.set(remoteSocketId, state)
 
-            // Add local tracks
+            // Add local tracks to the connection
             if (localStreamRef.current) {
                 localStreamRef.current.getTracks().forEach((track) => {
                     pc.addTrack(track, localStreamRef.current!)
                 })
             }
 
-            // Remote track → update participant stream
-            pc.ontrack = ({ streams: [remoteStream] }) => {
+            // Keep one stream per peer, including streamless WebRTC track events.
+            const fallbackStream = new MediaStream()
+            pc.ontrack = (event) => {
+                if (peerConnections.current.get(remoteSocketId) !== pc) return
+                const remoteStream = event.streams[0] ?? fallbackStream
+                if (!remoteStream.getTracks().some((track) => track.id === event.track.id)) {
+                    remoteStream.addTrack(event.track)
+                }
                 setParticipants((prev) => {
                     const existing = prev.find((p) => p.socketId === remoteSocketId)
                     if (existing) {
                         return prev.map((p) =>
-                            p.socketId === remoteSocketId ? { ...p, stream: remoteStream } : p,
+                            p.socketId === remoteSocketId
+                                ? { ...p, stream: remoteStream }
+                                : p,
                         )
                     }
                     return [
                         ...prev,
-                        { socketId: remoteSocketId, username: remoteUsername, stream: remoteStream, isMuted: false, isVideoOff: false },
+                        {
+                            socketId: remoteSocketId,
+                            username: remoteUsername,
+                            stream: remoteStream,
+                            isMuted: false,
+                            isVideoOff: false,
+                        },
                     ]
                 })
             }
 
-            // ICE candidates
-            pc.onicecandidate = ({ candidate }) => {
-                if (candidate) {
+            // Send ICE candidates through signaling server
+            pc.onicecandidate = (event) => {
+                if (event.candidate) {
                     socket.emit(SocketEvent.VIDEO_CALL_ICE_CANDIDATE, {
                         targetSocketId: remoteSocketId,
-                        candidate,
+                        candidate: event.candidate,
                     })
-                }
-            }
-
-            // Perfect negotiation — negotiationneeded fires when tracks added
-            pc.onnegotiationneeded = async () => {
-                try {
-                    state.makingOffer = true
-                    await pc.setLocalDescription()
-                    socket.emit(SocketEvent.VIDEO_CALL_OFFER, {
-                        targetSocketId: remoteSocketId,
-                        offer: pc.localDescription,
-                    })
-                } catch (err) {
-                    console.error("[PeerConn] negotiationneeded error:", err)
-                } finally {
-                    state.makingOffer = false
                 }
             }
 
             pc.onconnectionstatechange = () => {
-                if (
-                    pc.connectionState === "disconnected" ||
-                    pc.connectionState === "failed" ||
-                    pc.connectionState === "closed"
-                ) {
+                if (peerConnections.current.get(remoteSocketId) !== pc) return
+                // A temporary disconnection can recover; do not orphan a live peer.
+                if (pc.connectionState === "failed" || pc.connectionState === "closed") {
+                    peerConnections.current.delete(remoteSocketId)
+                    pendingCandidates.current.delete(remoteSocketId)
+                    pc.close()
                     setParticipants((prev) =>
                         prev.filter((p) => p.socketId !== remoteSocketId),
                     )
-                    peers.current.delete(remoteSocketId)
                 }
             }
 
-            return state
+            peerConnections.current.set(remoteSocketId, pc)
+            return pc
         },
         [socket],
     )
 
-    // ── Join call ──────────────────────────────────────────────────────────────
+    const flushPendingCandidates = useCallback(async (socketId: string, pc: RTCPeerConnection) => {
+        const candidates = pendingCandidates.current.get(socketId) ?? []
+        pendingCandidates.current.delete(socketId)
+        for (const candidate of candidates) {
+            if (peerConnections.current.get(socketId) !== pc) return
+            try {
+                await pc.addIceCandidate(candidate)
+            } catch (err) {
+                console.error("Error adding queued ICE candidate:", err)
+            }
+        }
+    }, [])
+
     const joinCall = useCallback(async () => {
+        if (localStreamRef.current || isJoiningCall.current) return
+        isJoiningCall.current = true
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: true,
+                audio: true,
+            })
             localStreamRef.current = stream
             setLocalStream(stream)
             setIsInCall(true)
-            socket.emit(SocketEvent.VIDEO_CALL_USER_JOINED, { username: currentUser.username })
+            socket.emit(SocketEvent.VIDEO_CALL_USER_JOINED, {
+                username: currentUser.username,
+            })
             toast.success("Joined the video call")
         } catch (err) {
-            console.error("getUserMedia failed:", err)
+            console.error("Failed to access media devices:", err)
             toast.error("Could not access camera/microphone. Check permissions.")
+        } finally {
+            isJoiningCall.current = false
         }
     }, [socket, currentUser.username])
 
-    // ── Leave call ─────────────────────────────────────────────────────────────
     const leaveCall = useCallback(() => {
-        // Stop call recording if active
         if (callMediaRecorder.current?.state !== "inactive") {
             callMediaRecorder.current?.stop()
         }
-        localStreamRef.current?.getTracks().forEach((t) => t.stop())
+        localStreamRef.current?.getTracks().forEach((track) => track.stop())
         localStreamRef.current = null
         setLocalStream(null)
-        peers.current.forEach(({ pc }) => pc.close())
-        peers.current.clear()
+        const connections = [...peerConnections.current.values()]
+        peerConnections.current.clear()
+        pendingCandidates.current.clear()
+        connections.forEach((pc) => pc.close())
         setParticipants([])
         setIsInCall(false)
         setIsMuted(false)
@@ -173,41 +183,38 @@ function VideoCallContextProvider({ children }: { children: ReactNode }) {
         toast.success("Left the video call")
     }, [socket])
 
-    // ── Toggle mute ────────────────────────────────────────────────────────────
     const toggleMute = useCallback(() => {
-        const track = localStreamRef.current?.getAudioTracks()[0]
-        if (!track) return
-        track.enabled = !track.enabled
-        setIsMuted(!track.enabled)
-        socket.emit(SocketEvent.VIDEO_CALL_MUTE_TOGGLE, { isMuted: !track.enabled })
+        if (!localStreamRef.current) return
+        const audioTrack = localStreamRef.current.getAudioTracks()[0]
+        if (audioTrack) {
+            audioTrack.enabled = !audioTrack.enabled
+            setIsMuted(!audioTrack.enabled)
+            socket.emit(SocketEvent.VIDEO_CALL_MUTE_TOGGLE, {
+                isMuted: !audioTrack.enabled,
+            })
+        }
     }, [socket])
 
-    // ── Toggle video ───────────────────────────────────────────────────────────
     const toggleVideo = useCallback(() => {
-        const track = localStreamRef.current?.getVideoTracks()[0]
-        if (!track) return
-        track.enabled = !track.enabled
-        setIsVideoOff(!track.enabled)
-        socket.emit(SocketEvent.VIDEO_CALL_VIDEO_TOGGLE, { isVideoOff: !track.enabled })
+        if (!localStreamRef.current) return
+        const videoTrack = localStreamRef.current.getVideoTracks()[0]
+        if (videoTrack) {
+            videoTrack.enabled = !videoTrack.enabled
+            setIsVideoOff(!videoTrack.enabled)
+            socket.emit(SocketEvent.VIDEO_CALL_VIDEO_TOGGLE, {
+                isVideoOff: !videoTrack.enabled,
+            })
+        }
     }, [socket])
 
-    // ── Record call ────────────────────────────────────────────────────────────
     const startCallRecording = useCallback(() => {
         if (!localStreamRef.current) return
         callRecordingChunks.current = []
-
-        // Combine local + all remote streams into one canvas-based stream
-        // Simpler approach: just record local stream + audio from all peers
         const tracks: MediaStreamTrack[] = []
-
-        // Local video + audio
         localStreamRef.current.getTracks().forEach((t) => tracks.push(t))
-
-        // Remote audio tracks
         participants.forEach(({ stream }) => {
             stream?.getAudioTracks().forEach((t) => tracks.push(t))
         })
-
         const combined = new MediaStream(tracks)
         const mr = new MediaRecorder(combined, { mimeType: "video/webm;codecs=vp8,opus" })
         mr.ondataavailable = (e) => {
@@ -236,129 +243,184 @@ function VideoCallContextProvider({ children }: { children: ReactNode }) {
         }
     }, [])
 
-    // ── Socket: existing participants list (sent to new joiner) ────────────────
+    // --- Socket event handlers ---
+
     const handleParticipantsList = useCallback(
-        async ({ participants: list }: { participants: Array<{ socketId: string; username: string }> }) => {
+        async ({
+            participants,
+        }: {
+            participants: Array<{ socketId: string; username: string }>
+        }) => {
             if (!localStreamRef.current) return
-            for (const p of list) {
+            // The server sends this list only to the new caller. That caller is
+            // the sole offerer; existing callers wait for the incoming offer.
+            for (const participant of participants) {
+                if (!localStreamRef.current) return
+                if (participant.socketId === socket.id || peerConnections.current.has(participant.socketId)) continue
                 setParticipants((prev) => {
-                    if (prev.find((x) => x.socketId === p.socketId)) return prev
-                    return [...prev, { socketId: p.socketId, username: p.username, stream: null, isMuted: false, isVideoOff: false }]
+                    if (prev.find((p) => p.socketId === participant.socketId))
+                        return prev
+                    return [
+                        ...prev,
+                        {
+                            socketId: participant.socketId,
+                            username: participant.username,
+                            stream: null,
+                            isMuted: false,
+                            isVideoOff: false,
+                        },
+                    ]
                 })
-                // New joiner is IMPOLITE (they initiate)
-                createPeer(p.socketId, p.username, false)
-                // onnegotiationneeded will fire and send the offer automatically
+                const pc = createPeerConnection(
+                    participant.socketId,
+                    participant.username,
+                )
+                try {
+                    const offer = await pc.createOffer()
+                    await pc.setLocalDescription(offer)
+                    if (peerConnections.current.get(participant.socketId) !== pc) continue
+                    socket.emit(SocketEvent.VIDEO_CALL_OFFER, {
+                        targetSocketId: participant.socketId,
+                        offer: pc.localDescription,
+                    })
+                } catch (err) {
+                    console.error("Error creating offer:", err)
+                }
             }
         },
-        [createPeer],
+        [createPeerConnection, socket],
     )
 
-    // ── Socket: someone joined (sent to existing participants) ─────────────────
     const handleUserJoined = useCallback(
         ({ socketId, username }: { socketId: string; username: string }) => {
-            if (!localStreamRef.current) return
+            if (!localStreamRef.current || socketId === socket.id) return
             setParticipants((prev) => {
                 if (prev.find((p) => p.socketId === socketId)) return prev
-                return [...prev, { socketId, username, stream: null, isMuted: false, isVideoOff: false }]
+                return [
+                    ...prev,
+                    { socketId, username, stream: null, isMuted: false, isVideoOff: false },
+                ]
             })
-            // Existing participant is POLITE (they defer on collision)
-            createPeer(socketId, username, true)
-            // onnegotiationneeded fires and sends offer — polite peer will rollback if needed
+            // Do not send an offer here: the new caller receives the participant
+            // list and initiates. Offering on both events causes SDP collisions.
         },
-        [createPeer],
+        [socket],
     )
 
-    // ── Socket: received offer (Perfect Negotiation) ───────────────────────────
     const handleOffer = useCallback(
-        async ({ senderSocketId, senderUsername, offer }: {
+        async ({
+            senderSocketId,
+            senderUsername,
+            offer,
+        }: {
             senderSocketId: string
             senderUsername: string
             offer: RTCSessionDescriptionInit
         }) => {
-            let peerState = peers.current.get(senderSocketId)
-            if (!peerState) {
-                // We haven't created a peer yet — create as polite
-                setParticipants((prev) => {
-                    if (prev.find((p) => p.socketId === senderSocketId)) return prev
-                    return [...prev, { socketId: senderSocketId, username: senderUsername, stream: null, isMuted: false, isVideoOff: false }]
-                })
-                peerState = createPeer(senderSocketId, senderUsername, true)
-            }
-
-            const { pc, polite, makingOffer } = peerState
-            const offerCollision =
-                offer.type === "offer" &&
-                (makingOffer || pc.signalingState !== "stable")
-
-            peerState.ignoreOffer = !polite && offerCollision
-            if (peerState.ignoreOffer) return
-
-            if (offerCollision) {
-                // Polite peer rolls back its own offer
-                await pc.setLocalDescription({ type: "rollback" })
-            }
-
-            await pc.setRemoteDescription(new RTCSessionDescription(offer))
-
-            if (offer.type === "offer") {
-                await pc.setLocalDescription()
+            if (!localStreamRef.current) return
+            setParticipants((prev) => {
+                if (prev.find((p) => p.socketId === senderSocketId)) return prev
+                return [
+                    ...prev,
+                    {
+                        socketId: senderSocketId,
+                        username: senderUsername,
+                        stream: null,
+                        isMuted: false,
+                        isVideoOff: false,
+                    },
+                ]
+            })
+            const pc = createPeerConnection(senderSocketId, senderUsername)
+            try {
+                await pc.setRemoteDescription(offer)
+                await flushPendingCandidates(senderSocketId, pc)
+                if (peerConnections.current.get(senderSocketId) !== pc) return
+                const answer = await pc.createAnswer()
+                await pc.setLocalDescription(answer)
+                if (peerConnections.current.get(senderSocketId) !== pc) return
                 socket.emit(SocketEvent.VIDEO_CALL_ANSWER, {
                     targetSocketId: senderSocketId,
                     answer: pc.localDescription,
                 })
+            } catch (err) {
+                console.error("Error handling offer:", err)
             }
         },
-        [createPeer, socket],
+        [createPeerConnection, flushPendingCandidates, socket],
     )
 
-    // ── Socket: received answer ────────────────────────────────────────────────
     const handleAnswer = useCallback(
-        async ({ senderSocketId, answer }: { senderSocketId: string; answer: RTCSessionDescriptionInit }) => {
-            const peerState = peers.current.get(senderSocketId)
-            if (!peerState || peerState.ignoreOffer) return
+        async ({
+            senderSocketId,
+            answer,
+        }: {
+            senderSocketId: string
+            answer: RTCSessionDescriptionInit
+        }) => {
+            const pc = peerConnections.current.get(senderSocketId)
+            if (!pc) return
             try {
-                await peerState.pc.setRemoteDescription(new RTCSessionDescription(answer))
+                await pc.setRemoteDescription(answer)
+                await flushPendingCandidates(senderSocketId, pc)
             } catch (err) {
-                console.error("[PeerConn] setRemoteDescription answer error:", err)
+                console.error("Error handling answer:", err)
             }
         },
-        [],
+        [flushPendingCandidates],
     )
 
-    // ── Socket: ICE candidate ──────────────────────────────────────────────────
     const handleIceCandidate = useCallback(
-        async ({ senderSocketId, candidate }: { senderSocketId: string; candidate: RTCIceCandidateInit }) => {
-            const peerState = peers.current.get(senderSocketId)
-            if (!peerState) return
+        async ({
+            senderSocketId,
+            candidate,
+        }: {
+            senderSocketId: string
+            candidate: RTCIceCandidateInit
+        }) => {
+            if (!localStreamRef.current) return
+            const pc = peerConnections.current.get(senderSocketId)
+            if (!pc?.remoteDescription) {
+                const candidates = pendingCandidates.current.get(senderSocketId) ?? []
+                candidates.push(candidate)
+                pendingCandidates.current.set(senderSocketId, candidates)
+                return
+            }
             try {
-                await peerState.pc.addIceCandidate(new RTCIceCandidate(candidate))
+                await pc.addIceCandidate(candidate)
             } catch (err) {
-                if (!peerState.ignoreOffer) console.error("[PeerConn] addIceCandidate error:", err)
+                console.error("Error adding ICE candidate:", err)
             }
         },
         [],
     )
 
-    // ── Socket: user left ──────────────────────────────────────────────────────
     const handleUserLeft = useCallback(({ socketId }: { socketId: string }) => {
-        const peerState = peers.current.get(socketId)
-        if (peerState) {
-            peerState.pc.close()
-            peers.current.delete(socketId)
-        }
+        const pc = peerConnections.current.get(socketId)
+        peerConnections.current.delete(socketId)
+        pendingCandidates.current.delete(socketId)
+        pc?.close()
         setParticipants((prev) => prev.filter((p) => p.socketId !== socketId))
     }, [])
 
-    // ── Socket: mute/video toggles ─────────────────────────────────────────────
-    const handleMuteToggle = useCallback(({ socketId, isMuted }: { socketId: string; isMuted: boolean }) => {
-        setParticipants((prev) => prev.map((p) => p.socketId === socketId ? { ...p, isMuted } : p))
-    }, [])
+    const handleMuteToggle = useCallback(
+        ({ socketId, isMuted }: { socketId: string; isMuted: boolean }) => {
+            setParticipants((prev) =>
+                prev.map((p) => p.socketId === socketId ? { ...p, isMuted } : p),
+            )
+        },
+        [],
+    )
 
-    const handleVideoToggle = useCallback(({ socketId, isVideoOff }: { socketId: string; isVideoOff: boolean }) => {
-        setParticipants((prev) => prev.map((p) => p.socketId === socketId ? { ...p, isVideoOff } : p))
-    }, [])
+    const handleVideoToggle = useCallback(
+        ({ socketId, isVideoOff }: { socketId: string; isVideoOff: boolean }) => {
+            setParticipants((prev) =>
+                prev.map((p) => p.socketId === socketId ? { ...p, isVideoOff } : p),
+            )
+        },
+        [],
+    )
 
-    // ── Register socket listeners ──────────────────────────────────────────────
     useEffect(() => {
         socket.on(SocketEvent.VIDEO_CALL_PARTICIPANTS_LIST, handleParticipantsList)
         socket.on(SocketEvent.VIDEO_CALL_USER_JOINED, handleUserJoined)
@@ -370,25 +432,35 @@ function VideoCallContextProvider({ children }: { children: ReactNode }) {
         socket.on(SocketEvent.VIDEO_CALL_VIDEO_TOGGLE, handleVideoToggle)
 
         return () => {
-            socket.off(SocketEvent.VIDEO_CALL_PARTICIPANTS_LIST)
-            socket.off(SocketEvent.VIDEO_CALL_USER_JOINED)
-            socket.off(SocketEvent.VIDEO_CALL_OFFER)
-            socket.off(SocketEvent.VIDEO_CALL_ANSWER)
-            socket.off(SocketEvent.VIDEO_CALL_ICE_CANDIDATE)
-            socket.off(SocketEvent.VIDEO_CALL_USER_LEFT)
-            socket.off(SocketEvent.VIDEO_CALL_MUTE_TOGGLE)
-            socket.off(SocketEvent.VIDEO_CALL_VIDEO_TOGGLE)
+            socket.off(SocketEvent.VIDEO_CALL_PARTICIPANTS_LIST, handleParticipantsList)
+            socket.off(SocketEvent.VIDEO_CALL_USER_JOINED, handleUserJoined)
+            socket.off(SocketEvent.VIDEO_CALL_OFFER, handleOffer)
+            socket.off(SocketEvent.VIDEO_CALL_ANSWER, handleAnswer)
+            socket.off(SocketEvent.VIDEO_CALL_ICE_CANDIDATE, handleIceCandidate)
+            socket.off(SocketEvent.VIDEO_CALL_USER_LEFT, handleUserLeft)
+            socket.off(SocketEvent.VIDEO_CALL_MUTE_TOGGLE, handleMuteToggle)
+            socket.off(SocketEvent.VIDEO_CALL_VIDEO_TOGGLE, handleVideoToggle)
         }
     }, [
-        handleParticipantsList, handleUserJoined, handleOffer, handleAnswer,
-        handleIceCandidate, handleUserLeft, handleMuteToggle, handleVideoToggle, socket,
+        handleParticipantsList,
+        handleUserJoined,
+        handleOffer,
+        handleAnswer,
+        handleIceCandidate,
+        handleUserLeft,
+        handleMuteToggle,
+        handleVideoToggle,
+        socket,
     ])
 
-    // ── Cleanup on unmount ─────────────────────────────────────────────────────
     useEffect(() => {
         return () => {
             localStreamRef.current?.getTracks().forEach((t) => t.stop())
-            peers.current.forEach(({ pc }) => pc.close())
+            localStreamRef.current = null
+            const connections = [...peerConnections.current.values()]
+            peerConnections.current.clear()
+            pendingCandidates.current.clear()
+            connections.forEach((pc) => pc.close())
         }
     }, [])
 

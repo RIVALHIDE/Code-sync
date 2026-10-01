@@ -36,19 +36,22 @@ function ChatInput() {
     return (
         <form
             onSubmit={handleSendMessage}
-            className="flex justify-between rounded-md border border-primary"
+            className="sidebar-chat-composer"
         >
             <input
                 type="text"
-                className="w-full flex-grow rounded-md border-none bg-dark p-2 outline-none"
+                className="sidebar-chat-input"
+                aria-label="Chat message"
                 placeholder="Enter a message..."
                 ref={inputRef}
             />
             <button
-                className="flex items-center justify-center rounded-r-md  bg-primary p-2 text-black"
+                className="sidebar-chat-send"
                 type="submit"
+                aria-label="Send message"
+                title="Send message"
             >
-                <LuSendHorizonal size={24} />
+                <LuSendHorizonal size={16} />
             </button>
         </form>
     )
