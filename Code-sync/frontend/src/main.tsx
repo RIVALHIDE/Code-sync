@@ -4,6 +4,7 @@ import App from "./App.tsx"
 import AppProvider from "./context/AppProvider.tsx"
 import "@/styles/global.css"
 import "@/styles/workspace.css"
+import "@/styles/font-size-boost.css"
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
     // <React.StrictMode>

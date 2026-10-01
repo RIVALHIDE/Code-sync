@@ -15,6 +15,7 @@ body {
     width: 100%;
     max-width: 100%;
     overflow-x: hidden;
+    font-size: 16px; /* Increased base font size */
 
     --sb-track-color: #3d404a;
     --sb-thumb-color: #e1e1ffb3;
@@ -62,6 +63,7 @@ body {
 
 .cm-editor .cm-scroller {
     font-family: "Space Mono", monospace;
+    font-size: 16px; /* Increased editor font size */
     /* min-height: 100vh; */
 }
 

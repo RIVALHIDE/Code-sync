@@ -8,11 +8,12 @@ import useWindowDimensions from "@/hooks/useWindowDimensions"
 import { ACTIVITY_STATE } from "@/types/app"
 import { SocketEvent } from "@/types/socket"
 import { VIEWS } from "@/types/view"
-import { LuCode2, LuPenTool, LuPanelLeftClose, LuX } from "react-icons/lu"
+import { LuCode2, LuPenTool, LuPanelLeftClose, LuX, LuLogOut } from "react-icons/lu"
 import { useEffect, useRef } from "react"
+import { useNavigate } from "react-router-dom"
 
 const toolGroups = [
-    [VIEWS.FILES, VIEWS.COPILOT, VIEWS.RUN],
+    [VIEWS.FILES, VIEWS.GITHUB, VIEWS.COPILOT, VIEWS.RUN],
     [VIEWS.CHATS, VIEWS.CLIENTS, VIEWS.VIDEO_CALL, VIEWS.VOICE],
     [VIEWS.CO_PROMPT, VIEWS.RECORDINGS, VIEWS.DASHBOARD],
 ]
@@ -29,6 +30,13 @@ function Sidebar() {
     const { socket } = useSocket()
     const { isMobile } = useWindowDimensions()
     const closeButton = useRef<HTMLButtonElement>(null)
+    const navigate = useNavigate()
+
+    const handleSignOut = () => {
+        socket.emit(SocketEvent.USER_OFFLINE, { socketId: socket.id })
+        socket.disconnect()
+        navigate("/")
+    }
 
     useEffect(() => {
         if (!isMobile || !isSidebarOpen) return
@@ -98,6 +106,15 @@ function Sidebar() {
                         viewName={VIEWS.SETTINGS}
                         icon={viewIcons[VIEWS.SETTINGS]}
                     />
+                    <button
+                        className="workspace-tool"
+                        onClick={handleSignOut}
+                        aria-label="Sign out of room"
+                        title="Sign out"
+                    >
+                        <LuLogOut />
+                        <span>Sign out</span>
+                    </button>
                 </div>
             </nav>
             {isSidebarOpen && (

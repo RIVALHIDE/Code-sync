@@ -1,0 +1,259 @@
+/* Font Size Boost for Video Calls and Presentations */
+/* Increases all fonts by approximately 20-30% for better visibility */
+
+/* Base font sizes */
+body {
+    font-size: 16px !important;
+}
+
+.workspace-shell {
+    font-size: 16px !important;
+}
+
+/* Code Editor - Most Important! */
+.cm-editor .cm-scroller {
+    font-size: 18px !important;
+    line-height: 1.6 !important;
+}
+
+.cm-editor .cm-line {
+    font-size: 18px !important;
+}
+
+/* Headings and Titles */
+.workspace-brand {
+    font-size: 28px !important;
+}
+
+.workspace-heading h1 {
+    font-size: 18px !important;
+}
+
+.workspace-heading p {
+    font-size: 15px !important;
+}
+
+.workspace-eyebrow {
+    font-size: 12px !important;
+}
+
+.workspace-panel-content h2:not(.editor-empty-state h2) {
+    font-size: 24px !important;
+}
+
+.workspace-panel-content p {
+    font-size: 15px !important;
+}
+
+/* Sidebar and Panels */
+.workspace-panel-heading {
+    font-size: 15px !important;
+}
+
+.panel-heading-caption {
+    font-size: 13px !important;
+}
+
+.workspace-panel-content {
+    font-size: 16px !important;
+}
+
+/* File Tree */
+.files-panel button {
+    font-size: 15px !important;
+}
+
+.files-panel .view-title > span {
+    font-size: 13px !important;
+}
+
+/* Editor Tabs */
+.editor-tabs-list {
+    font-size: 15px !important;
+}
+
+.editor-tab {
+    font-size: 15px !important;
+}
+
+/* Inputs and Forms */
+.workspace-panel-content :is(input, select, textarea) {
+    font-size: 16px !important;
+}
+
+input, select, textarea, button {
+    font-size: 16px !important;
+}
+
+/* Sidebar Panels */
+.sidebar-panel-content {
+    font-size: 15px !important;
+}
+
+.sidebar-panel-label {
+    font-size: 14px !important;
+}
+
+.sidebar-user-name {
+    font-size: 15px !important;
+}
+
+.sidebar-user-status {
+    font-size: 13px !important;
+}
+
+.sidebar-chat-author {
+    font-size: 13px !important;
+}
+
+.sidebar-chat-timestamp {
+    font-size: 12px !important;
+}
+
+.sidebar-chat-message {
+    font-size: 14px !important;
+}
+
+/* Chat */
+.chat-message {
+    font-size: 15px !important;
+}
+
+.chat-input {
+    font-size: 16px !important;
+}
+
+/* Video Call */
+.video-panel-header h1 {
+    font-size: 22px !important;
+}
+
+.video-panel-header p {
+    font-size: 14px !important;
+}
+
+.video-participant-name {
+    font-size: 15px !important;
+}
+
+.video-call-summary {
+    font-size: 14px !important;
+}
+
+/* Rubber Duck Mentor */
+.rubber-duck-mentor__trigger {
+    font-size: 14px !important;
+}
+
+.rubber-duck-mentor__panel h2 {
+    font-size: 16px !important;
+}
+
+.rubber-duck-mentor__panel p {
+    font-size: 14px !important;
+}
+
+.rubber-duck-mentor__selection code {
+    font-size: 14px !important;
+}
+
+.rubber-duck-mentor__message {
+    font-size: 14px !important;
+}
+
+.rubber-duck-mentor__input {
+    font-size: 15px !important;
+}
+
+/* Status Bar */
+.workspace-statusbar {
+    font-size: 13px !important;
+}
+
+/* Buttons and Controls */
+.workspace-tool {
+    font-size: 15px !important;
+}
+
+.workspace-tool > span:not(.unread-dot) {
+    font-size: 12px !important;
+}
+
+/* GitHub Panel */
+.github-auth-status {
+    font-size: 14px !important;
+}
+
+.github-repo-input {
+    font-size: 16px !important;
+}
+
+/* Dashboard */
+.sidebar-dashboard-run-file {
+    font-size: 14px !important;
+}
+
+.sidebar-dashboard-run-language {
+    font-size: 13px !important;
+}
+
+.sidebar-dashboard-run-time {
+    font-size: 13px !important;
+}
+
+/* Output Console */
+.output-console {
+    font-size: 16px !important;
+    line-height: 1.6 !important;
+}
+
+pre, code {
+    font-size: 16px !important;
+}
+
+/* Empty States */
+.editor-empty-state h2 {
+    font-size: 28px !important;
+}
+
+.editor-empty-state p {
+    font-size: 15px !important;
+}
+
+.empty-state-actions button {
+    font-size: 15px !important;
+}
+
+/* Language Selector */
+.language-selector select {
+    font-size: 16px !important;
+}
+
+/* Run Button */
+.run-code-button {
+    font-size: 16px !important;
+}
+
+/* Settings */
+.settings-section h3 {
+    font-size: 18px !important;
+}
+
+.settings-section label {
+    font-size: 15px !important;
+}
+
+/* Mobile Responsiveness - Keep larger fonts */
+@media screen and (max-width: 768px) {
+    body {
+        font-size: 16px !important;
+    }
+    
+    .cm-editor .cm-scroller {
+        font-size: 17px !important;
+    }
+    
+    .workspace-brand {
+        font-size: 24px !important;
+    }
+}

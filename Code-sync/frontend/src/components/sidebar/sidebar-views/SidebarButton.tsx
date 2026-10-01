@@ -4,6 +4,7 @@ import { VIEWS } from "@/types/view"
 
 export const VIEW_LABELS: Record<VIEWS, string> = {
     [VIEWS.FILES]: "Files",
+    [VIEWS.GITHUB]: "GitHub",
     [VIEWS.COPILOT]: "Copilot",
     [VIEWS.RUN]: "Run",
     [VIEWS.CHATS]: "Chat",

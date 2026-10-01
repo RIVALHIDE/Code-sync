@@ -45,3 +45,7 @@ backend/test/
 
 # ── Piston engine (local runtime, huge) ───────────────────────────────────────
 piston/
+
+# ── Markdown docs ─────────────────────────────────────────────────────────────
+*.md
+!README.md

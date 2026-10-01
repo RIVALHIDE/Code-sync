@@ -101,6 +101,7 @@ const RunCodeContextProvider = ({ children }: { children: ReactNode }) => {
             setIsRunning(true)
             const { language, version } = selectedLanguage
 
+            // ── Remote execution via Piston ────────────────────────────────────
             const response = await axiosInstance.post("/execute", {
                 language,
                 version,
@@ -130,12 +131,10 @@ const RunCodeContextProvider = ({ children }: { children: ReactNode }) => {
             setIsRunning(false)
             toast.dismiss()
         } catch (error: any) {
-            console.error(error.response.data)
-            console.error(error.response.data.error)
+            console.error(error.response?.data ?? error)
             setIsRunning(false)
             toast.dismiss()
             toast.error("Failed to run the code")
-            // record a failed run even when the executor itself throws
             if (activeFile && selectedLanguage.language) {
                 await postRunAnalytics(
                     currentUser.roomId,
@@ -143,7 +142,7 @@ const RunCodeContextProvider = ({ children }: { children: ReactNode }) => {
                     selectedLanguage.language,
                     activeFile.name,
                     false,
-                    error?.response?.data?.error ?? "Executor error",
+                    error?.response?.data?.error ?? error?.message ?? "Executor error",
                 )
             }
         }

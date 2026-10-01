@@ -5,6 +5,7 @@ import cors from "cors"
 import { SocketEvent, SocketId } from "./types/socket"
 import { USER_CONNECTION_STATUS, User } from "./types/user"
 import { Server } from "socket.io"
+import githubRouter from "./github"
 import path from "path"
 import {
 	recordSessionStart,
@@ -20,16 +21,46 @@ dotenv.config()
 
 const app = express()
 
-app.use(express.json())
+const allowedOrigins = (process.env.GITHUB_ALLOWED_ORIGINS ?? "")
+	.split(",")
+	.map((origin) => origin.trim().replace(/\/$/, ""))
+	.filter(Boolean)
 
-app.use(cors())
+app.use(express.json({ limit: "3mb" }))
+
+// Keep browser access explicit. In particular, the GitHub router accepts a
+// bearer token and must never be exposed through wildcard CORS.
+app.use(
+	cors({
+		origin: (origin, callback) => {
+			// Allow requests with no origin (like Postman, curl, server-to-server)
+			if (!origin) {
+				callback(null, true)
+				return
+			}
+			// If no origins configured, allow all for development
+			if (allowedOrigins.length === 0) {
+				callback(null, true)
+				return
+			}
+			// Check if origin is in the allowed list
+			if (allowedOrigins.includes(origin)) {
+				callback(null, true)
+				return
+			}
+			callback(new Error(`Origin ${origin} is not allowed. Add it to GITHUB_ALLOWED_ORIGINS in .env`))
+		},
+		credentials: false,
+	}),
+)
 
 app.use(express.static(path.join(__dirname, "public"))) // Serve static files
+app.use("/api/github", githubRouter)
 
 const server = http.createServer(app)
 const io = new Server(server, {
 	cors: {
-		origin: "*",
+		origin: allowedOrigins.length > 0 ? allowedOrigins : "*",
 	},
 	maxHttpBufferSize: 1e8,
 	pingTimeout: 60000,

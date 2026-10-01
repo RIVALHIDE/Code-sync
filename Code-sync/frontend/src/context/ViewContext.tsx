@@ -1,6 +1,7 @@
 import ChatsView from "@/components/sidebar/sidebar-views/ChatsView"
 import CopilotView from "@/components/sidebar/sidebar-views/CopilotView"
 import FilesView from "@/components/sidebar/sidebar-views/FilesView"
+import GitHubView from "@/components/sidebar/sidebar-views/GitHubView"
 import RunView from "@/components/sidebar/sidebar-views/RunView"
 import SettingsView from "@/components/sidebar/sidebar-views/SettingsView"
 import UsersView from "@/components/sidebar/sidebar-views/UsersView"
@@ -18,6 +19,7 @@ import { PiChats, PiPlay, PiUsers, PiWaveform } from "react-icons/pi"
 import { MdVideoCall } from "react-icons/md"
 import { LuCircleDot } from "react-icons/lu"
 import { PiMagicWand } from "react-icons/pi"
+import { FaGithub } from "react-icons/fa"
 
 const ViewContext = createContext<ViewContextType | null>(null)
 
@@ -36,6 +38,7 @@ function ViewContextProvider({ children }: { children: ReactNode }) {
     const [viewComponents] = useState({
         [VIEWS.FILES]: <FilesView />,
         [VIEWS.CLIENTS]: <UsersView />,
+        [VIEWS.GITHUB]: <GitHubView />,
         [VIEWS.SETTINGS]: <SettingsView />,
         [VIEWS.COPILOT]: <CopilotView />,
         [VIEWS.CHATS]: <ChatsView />,
@@ -49,6 +52,7 @@ function ViewContextProvider({ children }: { children: ReactNode }) {
     const [viewIcons] = useState({
         [VIEWS.FILES]: <LuFiles size={28} />,
         [VIEWS.CLIENTS]: <PiUsers size={30} />,
+        [VIEWS.GITHUB]: <FaGithub size={28} />,
         [VIEWS.SETTINGS]: <IoSettingsOutline size={28} />,
         [VIEWS.CHATS]: <PiChats size={30} />,
         [VIEWS.COPILOT]: <LuSparkles size={28} />,

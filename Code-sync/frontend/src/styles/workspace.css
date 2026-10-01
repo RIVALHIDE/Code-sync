@@ -56,7 +56,7 @@
     align-items: center;
     gap: 10px;
     color: #f2f5fa;
-    font-size: 23px;
+    font-size: 26px; /* Increased from 23px */
     font-weight: 650;
     letter-spacing: -1px;
 }
@@ -79,13 +79,13 @@
     background: var(--workspace-border);
 }
 .workspace-heading h1 {
-    font-size: 13px;
+    font-size: 16px; /* Increased from 13px */
     font-weight: 600;
 }
 .workspace-heading p {
     margin-top: 4px;
     color: var(--workspace-muted);
-    font-size: 11px;
+    font-size: 14px; /* Increased from 11px */
 }
 .session-badge {
     display: inline-flex;
@@ -375,7 +375,7 @@
     background-color: var(--workspace-accent);
 }
 .workspace-panel-content :is(input, select, textarea) {
-    font-size: 12px;
+    font-size: 14px; /* Increased from 12px */
 }
 .workspace-gutter {
     z-index: 1;
@@ -420,7 +420,7 @@
     line-height: 1.6;
 }
 .files-panel button {
-    font-size: 11px;
+    font-size: 13px; /* Increased from 11px */
 }
 .files-panel .view-title {
     margin-bottom: 8px;

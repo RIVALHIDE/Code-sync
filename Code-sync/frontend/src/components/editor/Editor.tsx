@@ -1,4 +1,9 @@
 import { useAppContext } from "@/context/AppContext"
+import {
+    MENTOR_SELECTION_LIMIT,
+    MentorSelection,
+    usePedagogicalAI,
+} from "@/context/PedagogicalAIContext"
 import { useFileSystem } from "@/context/FileContext"
 import { useSettings } from "@/context/SettingContext"
 import { useSocket } from "@/context/SocketContext"
@@ -25,6 +30,7 @@ import {
 import { createLintExtension } from "./linting"
 import { createAutocompleteExtension } from "./autocomplete"
 import { useRecording } from "@/context/RecordingContext"
+import RubberDuckMentor from "@/components/ai/RubberDuckMentor"
 
 function Editor() {
     const { users, currentUser } = useAppContext()
@@ -33,6 +39,8 @@ function Editor() {
         useSettings()
     const { socket } = useSocket()
     const { captureEvent, recordingState } = useRecording()
+    const { clearMentor, mentorSelection: submittedMentorSelection } =
+        usePedagogicalAI()
     const [timeOut, setTimeOut] = useState(setTimeout(() => {}, 0))
     const filteredUsers = useMemo(
         () => users.filter((u) => u.username !== currentUser.username),
@@ -45,6 +53,8 @@ function Editor() {
         start?: number
         end?: number
     }>({})
+    const [mentorSelection, setMentorSelection] =
+        useState<MentorSelection | null>(null)
     const cursorMoveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
         null,
     )
@@ -102,6 +112,41 @@ function Editor() {
             const cursorPosition = selection?.head || 0
             const selectionStart = selection?.from
             const selectionEnd = selection?.to
+            const selectedText =
+                activeFile?.id &&
+                selectionStart !== undefined &&
+                selectionEnd !== undefined &&
+                selectionEnd > selectionStart
+                    ? view.state.sliceDoc(selectionStart, selectionEnd)
+                    : ""
+            const nextMentorSelection =
+                activeFile && selectedText.trim().length > 0
+                    ? {
+                          code: selectedText.slice(0, MENTOR_SELECTION_LIMIT),
+                          language,
+                          fileId: activeFile.id,
+                          truncated: selectedText.length > MENTOR_SELECTION_LIMIT,
+                      }
+                    : null
+            const mentorSelectionChanged =
+                (nextMentorSelection?.code ?? "") !==
+                    (mentorSelection?.code ?? "") ||
+                nextMentorSelection?.language !== mentorSelection?.language ||
+                nextMentorSelection?.fileId !== mentorSelection?.fileId
+
+            if (mentorSelectionChanged) {
+                setMentorSelection(nextMentorSelection)
+                if (
+                    !nextMentorSelection ||
+                    !submittedMentorSelection ||
+                    nextMentorSelection.code !== submittedMentorSelection.code ||
+                    nextMentorSelection.language !==
+                        submittedMentorSelection.language ||
+                    nextMentorSelection.fileId !== submittedMentorSelection.fileId
+                ) {
+                    clearMentor()
+                }
+            }
 
             // Check if cursor or selection actually changed
             const cursorChanged = cursorPosition !== lastCursorPosition
@@ -128,7 +173,16 @@ function Editor() {
                 }, 100) // 100ms debounce
             }
         },
-        [lastCursorPosition, lastSelection, socket],
+        [
+            activeFile?.id,
+            clearMentor,
+            language,
+            lastCursorPosition,
+            lastSelection,
+            mentorSelection,
+            socket,
+            submittedMentorSelection,
+        ],
     )
 
     // Listen wheel event to zoom in/out and prevent page reload
@@ -175,6 +229,12 @@ function Editor() {
         }
     }, [filteredUsers])
 
+    // A selection belongs to the active file and language. Clear it when either changes.
+    useEffect(() => {
+        setMentorSelection(null)
+        clearMentor()
+    }, [activeFile?.id, clearMentor, language])
+
     // Capture file-switch events during recording
     useEffect(() => {
         if (recordingState === "recording" && activeFile) {
@@ -190,20 +250,29 @@ function Editor() {
     }, [activeFile?.id, recordingState])
 
     return (
-        <CodeMirror
-            ref={editorRef}
-            theme={editorThemes[theme]}
-            onChange={onCodeChange}
-            value={activeFile?.content}
-            extensions={extensions}
-            height="100%"
-            className="workspace-codemirror"
-            style={{
-                fontSize: fontSize + "px",
-                fontFamily: `${fontFamily}, monospace`,
-                height: "100%",
-            }}
-        />
+        <div className="editor-with-mentor">
+            <CodeMirror
+                ref={editorRef}
+                theme={editorThemes[theme]}
+                onChange={onCodeChange}
+                value={activeFile?.content}
+                extensions={extensions}
+                height="100%"
+                className="workspace-codemirror"
+                style={{
+                    fontSize: fontSize + "px",
+                    fontFamily: `${fontFamily}, monospace`,
+                    height: "100%",
+                }}
+            />
+            <RubberDuckMentor
+                selection={mentorSelection}
+                onDismissSelection={() => {
+                    setMentorSelection(null)
+                    clearMentor()
+                }}
+            />
+        </div>
     )
 }
 
