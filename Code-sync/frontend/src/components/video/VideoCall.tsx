@@ -3,6 +3,7 @@ import { useVideoCall } from "@/context/VideoCallContext"
 import { VideoCallParticipant } from "@/types/videoCall"
 import { BsMicFill, BsMicMuteFill } from "react-icons/bs"
 import { FaPhone, FaPhoneSlash, FaVideo, FaVideoSlash } from "react-icons/fa"
+import { LuCircle, LuSquare } from "react-icons/lu"
 import VideoTile from "./VideoTile"
 
 function VideoCall() {
@@ -11,15 +12,17 @@ function VideoCall() {
         isInCall,
         isMuted,
         isVideoOff,
+        isRecordingCall,
         participants,
         localStream,
         joinCall,
         leaveCall,
         toggleMute,
         toggleVideo,
+        startCallRecording,
+        stopCallRecording,
     } = useVideoCall()
 
-    // Build local participant shape for VideoTile
     const localParticipant: VideoCallParticipant = {
         socketId: "local",
         username: currentUser.username,
@@ -28,9 +31,7 @@ function VideoCall() {
         isVideoOff,
     }
 
-    const allParticipants = isInCall
-        ? [localParticipant, ...participants]
-        : []
+    const allParticipants = isInCall ? [localParticipant, ...participants] : []
 
     const gridCols =
         allParticipants.length <= 1
@@ -66,6 +67,14 @@ function VideoCall() {
 
     return (
         <div className="flex flex-1 flex-col overflow-hidden">
+            {/* Recording indicator */}
+            {isRecordingCall && (
+                <div className="flex items-center gap-2 bg-red-600/20 px-3 py-1.5">
+                    <LuCircle size={10} className="animate-pulse fill-red-500 text-red-500" />
+                    <span className="text-xs font-medium text-red-400">Recording call...</span>
+                </div>
+            )}
+
             {/* Video grid */}
             <div className={`grid flex-1 gap-2 overflow-y-auto p-3 ${gridCols}`}>
                 {allParticipants.map((p) => (
@@ -84,7 +93,7 @@ function VideoCall() {
 
             {/* Controls bar */}
             <div className="flex items-center justify-center gap-3 border-t border-darkHover px-4 py-3">
-                {/* Mute toggle */}
+                {/* Mute */}
                 <button
                     onClick={toggleMute}
                     title={isMuted ? "Unmute" : "Mute"}
@@ -97,7 +106,7 @@ function VideoCall() {
                     {isMuted ? <BsMicMuteFill size={18} /> : <BsMicFill size={18} />}
                 </button>
 
-                {/* Video toggle */}
+                {/* Video */}
                 <button
                     onClick={toggleVideo}
                     title={isVideoOff ? "Turn on camera" : "Turn off camera"}
@@ -110,7 +119,20 @@ function VideoCall() {
                     {isVideoOff ? <FaVideoSlash size={18} /> : <FaVideo size={18} />}
                 </button>
 
-                {/* Leave call */}
+                {/* Record call */}
+                <button
+                    onClick={isRecordingCall ? stopCallRecording : startCallRecording}
+                    title={isRecordingCall ? "Stop recording" : "Record call"}
+                    className={`flex h-10 w-10 items-center justify-center rounded-full transition-colors ${
+                        isRecordingCall
+                            ? "bg-red-600 text-white hover:bg-red-700"
+                            : "bg-darkHover text-white hover:bg-white/10"
+                    }`}
+                >
+                    {isRecordingCall ? <LuSquare size={16} /> : <LuCircle size={16} />}
+                </button>
+
+                {/* Leave */}
                 <button
                     onClick={leaveCall}
                     title="Leave call"

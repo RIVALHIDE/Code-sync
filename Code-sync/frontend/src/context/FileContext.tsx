@@ -14,8 +14,10 @@ import {
     isFileExist,
 } from "@/utils/file"
 import { EditorView } from "@codemirror/view"
+import customMapping from "@/utils/customMapping"
 import { saveAs } from "file-saver"
 import JSZip from "jszip"
+import langMap from "lang-map"
 import {
     ReactNode,
     createContext,
@@ -29,6 +31,7 @@ import { toast } from "react-hot-toast"
 import { v4 as uuidv4 } from "uuid"
 import { useAppContext } from "./AppContext"
 import { useSocket } from "./SocketContext"
+import { useSettings } from "./SettingContext"
 
 const FileContext = createContext<FileContextType | null>(null)
 
@@ -40,58 +43,94 @@ export const useFileSystem = (): FileContextType => {
     return context
 }
 
+// ── language detection helper ─────────────────────────────────────────────────
+
+function detectLanguage(fileName: string): string {
+    const ext = fileName.split(".").pop()?.toLowerCase() ?? ""
+    if (customMapping[ext]) return customMapping[ext]
+    const langs = langMap.languages(ext)
+    return langs[0] ?? ""
+}
+
+// ── path helper (walk tree to find path) ─────────────────────────────────────
+
+function findPath(
+    node: FileSystemItem,
+    targetId: Id,
+    current: string,
+): string | null {
+    const here = current ? `${current}/${node.name}` : node.name
+    if (node.id === targetId) return here
+    for (const child of node.children ?? []) {
+        const result = findPath(child, targetId, here)
+        if (result) return result
+    }
+    return null
+}
+
+// ── provider ──────────────────────────────────────────────────────────────────
+
 function FileContextProvider({ children }: { children: ReactNode }) {
     const { socket } = useSocket()
     const { setUsers, drawingData } = useAppContext()
+    const { setLanguage } = useSettings()
 
     const [fileStructure, setFileStructure] =
         useState<FileSystemItem>(initialFileStructure)
-    const initialOpenFiles = fileStructure.children
-        ? fileStructure.children
-        : []
+    const initialOpenFiles = fileStructure.children ?? []
     const [openFiles, setOpenFiles] =
         useState<FileSystemItem[]>(initialOpenFiles)
     const [activeFile, setActiveFile] = useState<FileSystemItem | null>(
-        openFiles[0],
+        openFiles[0] ?? null,
     )
 
     // Editor view ref for accessing CodeMirror instance from other components (e.g., VoiceButton)
     const editorViewRef = useRef<EditorView | null>(null)
 
-    // Function to toggle the isOpen property of a directory (Directory Open/Close)
+    // ── apply language from active file ──────────────────────────────────────
+    useEffect(() => {
+        if (!activeFile?.name) return
+        const lang = detectLanguage(activeFile.name)
+        if (lang) setLanguage(lang)
+    }, [activeFile?.id, activeFile?.name, setLanguage])
+
+    // ── getFilePath ───────────────────────────────────────────────────────────
+    const getFilePath = useCallback(
+        (fileId: Id): string => {
+            const result = findPath(fileStructure, fileId, "")
+            if (!result) return ""
+            // Strip the virtual "root/" prefix
+            return result.startsWith("root/") ? result.slice(5) : result
+        },
+        [fileStructure],
+    )
+
+    // ── toggleDirectory ───────────────────────────────────────────────────────
     const toggleDirectory = (dirId: Id) => {
         const toggleDir = (directory: FileSystemItem): FileSystemItem => {
             if (directory.id === dirId) {
-                return {
-                    ...directory,
-                    isOpen: !directory.isOpen,
-                }
+                return { ...directory, isOpen: !directory.isOpen }
             } else if (directory.children) {
                 return {
                     ...directory,
                     children: directory.children.map(toggleDir),
                 }
-            } else {
-                return directory
             }
+            return directory
         }
-
-        // Update fileStructure with the opened directory
-        setFileStructure((prevFileStructure) => toggleDir(prevFileStructure))
+        setFileStructure((prev) => toggleDir(prev))
     }
 
     const collapseDirectories = () => {
-        const collapseDir = (directory: FileSystemItem): FileSystemItem => {
-            return {
-                ...directory,
-                isOpen: false,
-                children: directory.children?.map(collapseDir),
-            }
-        }
-
-        setFileStructure((prevFileStructure) => collapseDir(prevFileStructure))
+        const collapseDir = (directory: FileSystemItem): FileSystemItem => ({
+            ...directory,
+            isOpen: false,
+            children: directory.children?.map(collapseDir),
+        })
+        setFileStructure((prev) => collapseDir(prev))
     }
 
+    // ── createDirectory ───────────────────────────────────────────────────────
     const createDirectory = useCallback(
         (
             parentDirId: string,
@@ -117,26 +156,20 @@ function FileContextProvider({ children }: { children: ReactNode }) {
                 directory: FileSystemItem,
             ): FileSystemItem => {
                 if (directory.id === parentDirId) {
-                    // If the current directory matches the parent, add new directory to its children
                     return {
                         ...directory,
                         children: [...(directory.children || []), newDirectory],
                     }
                 } else if (directory.children) {
-                    // If it's not the parent directory, recursively update children
                     return {
                         ...directory,
                         children: directory.children.map(addDirectoryToParent),
                     }
-                } else {
-                    // Return the directory as is if it has no children
-                    return directory
                 }
+                return directory
             }
 
-            setFileStructure((prevFileStructure) =>
-                addDirectoryToParent(prevFileStructure),
-            )
+            setFileStructure((prev) => addDirectoryToParent(prev))
 
             if (!sendToSocket) return newDirectory.id
             socket.emit(SocketEvent.DIRECTORY_CREATED, {
@@ -149,6 +182,7 @@ function FileContextProvider({ children }: { children: ReactNode }) {
         [fileStructure.id, socket],
     )
 
+    // ── updateDirectory ───────────────────────────────────────────────────────
     const updateDirectory = useCallback(
         (
             dirId: string,
@@ -161,28 +195,18 @@ function FileContextProvider({ children }: { children: ReactNode }) {
                 directory: FileSystemItem,
             ): FileSystemItem => {
                 if (directory.id === dirId) {
-                    return {
-                        ...directory,
-                        children,
-                    }
+                    return { ...directory, children }
                 } else if (directory.children) {
                     return {
                         ...directory,
                         children: directory.children.map(updateChildren),
                     }
-                } else {
-                    return directory
                 }
+                return directory
             }
 
-            setFileStructure((prevFileStructure) =>
-                updateChildren(prevFileStructure),
-            )
-
-            // Close all open files in the directory being updated
+            setFileStructure((prev) => updateChildren(prev))
             setOpenFiles([])
-
-            // Set the active file to null if it's in the directory being updated
             setActiveFile(null)
 
             if (dirId === fileStructure.id) {
@@ -191,14 +215,12 @@ function FileContextProvider({ children }: { children: ReactNode }) {
             }
 
             if (!sendToSocket) return
-            socket.emit(SocketEvent.DIRECTORY_UPDATED, {
-                dirId,
-                children,
-            })
+            socket.emit(SocketEvent.DIRECTORY_UPDATED, { dirId, children })
         },
         [fileStructure.id, socket],
     )
 
+    // ── renameDirectory ───────────────────────────────────────────────────────
     const renameDirectory = useCallback(
         (
             dirId: string,
@@ -209,86 +231,61 @@ function FileContextProvider({ children }: { children: ReactNode }) {
                 directory: FileSystemItem,
             ): FileSystemItem | null => {
                 if (directory.type === "directory" && directory.children) {
-                    // Check if a directory with the new name already exists
                     const isNameTaken = directory.children.some(
                         (item) =>
                             item.type === "directory" &&
                             item.name === newDirName &&
                             item.id !== dirId,
                     )
-
-                    if (isNameTaken) {
-                        return null // Name is already taken
-                    }
+                    if (isNameTaken) return null
 
                     return {
                         ...directory,
                         children: directory.children.map((item) => {
                             if (item.id === dirId) {
-                                return {
-                                    ...item,
-                                    name: newDirName,
-                                }
+                                return { ...item, name: newDirName }
                             } else if (item.type === "directory") {
-                                // Recursively update nested directories
-                                const updatedNestedDir = renameInDirectory(item)
-                                return updatedNestedDir !== null
-                                    ? updatedNestedDir
-                                    : item
-                            } else {
-                                return item
+                                const updated = renameInDirectory(item)
+                                return updated !== null ? updated : item
                             }
+                            return item
                         }),
                     }
-                } else {
-                    return directory
                 }
+                return directory
             }
 
-            const updatedFileStructure = renameInDirectory(fileStructure)
+            const updated = renameInDirectory(fileStructure)
+            if (updated === null) return false
 
-            if (updatedFileStructure === null) {
-                return false
-            }
-
-            setFileStructure(updatedFileStructure)
+            setFileStructure(updated)
 
             if (!sendToSocket) return true
-            socket.emit(SocketEvent.DIRECTORY_RENAMED, {
-                dirId,
-                newDirName,
-            })
-
+            socket.emit(SocketEvent.DIRECTORY_RENAMED, { dirId, newDirName })
             return true
         },
-        [socket, setFileStructure, fileStructure],
+        [socket, fileStructure],
     )
 
+    // ── deleteDirectory ───────────────────────────────────────────────────────
     const deleteDirectory = useCallback(
         (dirId: string, sendToSocket: boolean = true) => {
             const deleteFromDirectory = (
                 directory: FileSystemItem,
             ): FileSystemItem | null => {
                 if (directory.type === "directory" && directory.id === dirId) {
-                    // If the current directory matches the one to delete, return null (remove it)
                     return null
                 } else if (directory.children) {
-                    // If it's not the directory to delete, recursively update children
                     const updatedChildren = directory.children
                         .map(deleteFromDirectory)
                         .filter((item) => item !== null) as FileSystemItem[]
-                    return {
-                        ...directory,
-                        children: updatedChildren,
-                    }
-                } else {
-                    // Return the directory as is if it has no children
-                    return directory
+                    return { ...directory, children: updatedChildren }
                 }
+                return directory
             }
 
             setFileStructure(
-                (prevFileStructure) => deleteFromDirectory(prevFileStructure)!,
+                (prev) => deleteFromDirectory(prev)!,
             )
 
             if (!sendToSocket) return
@@ -297,68 +294,60 @@ function FileContextProvider({ children }: { children: ReactNode }) {
         [socket],
     )
 
-    const openFile = (fileId: Id) => {
-        const file = getFileById(fileStructure, fileId)
+    // ── openFile ──────────────────────────────────────────────────────────────
+    const openFile = useCallback(
+        (fileId: Id) => {
+            const file = getFileById(fileStructure, fileId)
+            if (!file) return
 
-        if (file) {
-            updateFileContent(activeFile?.id || "", activeFile?.content || "") // Save the content of the previously active file
+            // Persist current active file content back to tree
+            updateFileContent(activeFile?.id || "", activeFile?.content || "")
 
-            // Add the file to openFiles if it's not already open
-            if (!openFiles.some((file) => file.id === fileId)) {
-                setOpenFiles((prevOpenFiles) => [...prevOpenFiles, file])
+            if (!openFiles.some((f) => f.id === fileId)) {
+                setOpenFiles((prev) => [...prev, file])
             }
 
-            // Update content in openFiles
-            setOpenFiles((prevOpenFiles) =>
-                prevOpenFiles.map((file) => {
-                    if (file.id === activeFile?.id) {
-                        return {
-                            ...file,
-                            content: activeFile.content || "",
-                        }
-                    } else {
-                        return file
-                    }
-                }),
+            // Sync active file content in openFiles list
+            setOpenFiles((prev) =>
+                prev.map((f) =>
+                    f.id === activeFile?.id
+                        ? { ...f, content: activeFile.content || "" }
+                        : f,
+                ),
             )
 
             setActiveFile(file)
-        }
-    }
+        },
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [fileStructure, openFiles, activeFile],
+    )
 
-    const closeFile = (fileId: Id) => {
-        // Set the active file to next file if there is one
-        if (fileId === activeFile?.id) {
-            // Save the content of the active file before closing
-            updateFileContent(activeFile.id, activeFile.content || "")
-            const fileIndex = openFiles.findIndex((file) => file.id === fileId)
-
-            if (fileIndex !== -1 && openFiles.length > 1) {
-                if (fileIndex > 0) {
-                    setActiveFile(openFiles[fileIndex - 1])
+    // ── closeFile ─────────────────────────────────────────────────────────────
+    const closeFile = useCallback(
+        (fileId: Id) => {
+            if (fileId === activeFile?.id) {
+                updateFileContent(activeFile.id, activeFile.content || "")
+                const idx = openFiles.findIndex((f) => f.id === fileId)
+                if (idx !== -1 && openFiles.length > 1) {
+                    setActiveFile(openFiles[idx > 0 ? idx - 1 : idx + 1])
                 } else {
-                    setActiveFile(openFiles[fileIndex + 1])
+                    setActiveFile(null)
                 }
-            } else {
-                setActiveFile(null)
             }
-        }
+            setOpenFiles((prev) => prev.filter((f) => f.id !== fileId))
+        },
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [activeFile, openFiles],
+    )
 
-        // Remove the file from openFiles
-        setOpenFiles((prevOpenFiles) =>
-            prevOpenFiles.filter((openFile) => openFile.id !== fileId),
-        )
-    }
-
+    // ── createFile ────────────────────────────────────────────────────────────
     const createFile = useCallback(
         (
             parentDirId: string,
             file: FileName | FileSystemItem,
             sendToSocket: boolean = true,
         ): Id => {
-            // Check if file with same name already exists
             let num = 1
-
             if (!parentDirId) parentDirId = fileStructure.id
 
             const parentDir = findParentDirectory(fileStructure, parentDirId)
@@ -370,7 +359,10 @@ function FileContextProvider({ children }: { children: ReactNode }) {
                 let name = file
                 let fileExists = isFileExist(parentDir, name)
                 while (fileExists) {
-                    name = `${name.split(".")[0]}(${num}).${name.split(".")[1]}`
+                    const parts = name.split(".")
+                    const ext = parts.length > 1 ? parts.pop() : ""
+                    const base = parts.join(".")
+                    name = ext ? `${base}(${num}).${ext}` : `${base}(${num})`
                     fileExists = isFileExist(parentDir, name)
                     num++
                 }
@@ -380,220 +372,170 @@ function FileContextProvider({ children }: { children: ReactNode }) {
                     name,
                     type: "file",
                     content: "",
+                    isDirty: false,
                 }
             } else {
                 newFile = file
             }
 
-            const updateDirectory = (
-                directory: FileSystemItem,
-            ): FileSystemItem => {
+            const addToParent = (directory: FileSystemItem): FileSystemItem => {
                 if (directory.id === parentDir.id) {
-                    // If directory matches parentDir, return updated directory with new file
                     return {
                         ...directory,
                         children: [...(directory.children || []), newFile],
                         isOpen: true,
                     }
                 } else if (directory.children) {
-                    // If directory has children, recursively update each child
                     return {
                         ...directory,
-                        children: directory.children.map(updateDirectory),
+                        children: directory.children.map(addToParent),
                     }
-                } else {
-                    // Otherwise, return unchanged directory
-                    return directory
                 }
+                return directory
             }
 
-            // Update fileStructure with the updated parentDir
-            setFileStructure((prevFileStructure) =>
-                updateDirectory(prevFileStructure),
-            )
-
-            // Add the new file to openFiles
-            setOpenFiles((prevOpenFiles) => [...prevOpenFiles, newFile])
-
-            // Set the new file as active file
+            setFileStructure((prev) => addToParent(prev))
+            setOpenFiles((prev) => [...prev, newFile])
             setActiveFile(newFile)
 
             if (!sendToSocket) return newFile.id
-            socket.emit(SocketEvent.FILE_CREATED, {
-                parentDirId,
-                newFile,
-            })
-
+            socket.emit(SocketEvent.FILE_CREATED, { parentDirId, newFile })
             return newFile.id
         },
         [fileStructure, socket],
     )
 
+    // ── updateFileContent ────────────────────────────────────────────────────
     const updateFileContent = useCallback(
         (fileId: string, newContent: string) => {
-            // Recursive function to find and update the file
             const updateFile = (directory: FileSystemItem): FileSystemItem => {
                 if (directory.type === "file" && directory.id === fileId) {
-                    // If the current item is the file to update, return updated file
                     return {
                         ...directory,
                         content: newContent,
+                        isDirty: directory.content !== newContent,
                     }
                 } else if (directory.children) {
-                    // If the current item is a directory, recursively update children
                     return {
                         ...directory,
                         children: directory.children.map(updateFile),
                     }
-                } else {
-                    // Otherwise, return the directory unchanged
-                    return directory
                 }
+                return directory
             }
 
-            // Update fileStructure with the updated file content
-            setFileStructure((prevFileStructure) =>
-                updateFile(prevFileStructure),
-            )
+            setFileStructure((prev) => updateFile(prev))
 
-            // Update openFiles if the file is open
-            if (openFiles.some((file) => file.id === fileId)) {
-                setOpenFiles((prevOpenFiles) =>
-                    prevOpenFiles.map((file) => {
-                        if (file.id === fileId) {
-                            return {
-                                ...file,
-                                content: newContent,
-                            }
-                        } else {
-                            return file
-                        }
-                    }),
+            if (openFiles.some((f) => f.id === fileId)) {
+                setOpenFiles((prev) =>
+                    prev.map((f) =>
+                        f.id === fileId
+                            ? {
+                                  ...f,
+                                  content: newContent,
+                                  isDirty: f.content !== newContent,
+                              }
+                            : f,
+                    ),
                 )
             }
         },
         [openFiles],
     )
 
+    // ── renameFile (with duplicate-name guard) ────────────────────────────────
     const renameFile = useCallback(
         (
             fileId: string,
             newName: string,
             sendToSocket: boolean = true,
         ): boolean => {
-            const renameInDirectory = (
+            // Guard: check for duplicate name in the same parent directory
+            let duplicateFound = false
+            const checkAndRename = (
                 directory: FileSystemItem,
             ): FileSystemItem => {
                 if (directory.type === "directory" && directory.children) {
+                    // Check if any sibling has the new name
+                    const hasDuplicate = directory.children.some(
+                        (item) =>
+                            item.type === "file" &&
+                            item.name === newName &&
+                            item.id !== fileId,
+                    )
+                    // Does this directory contain the file being renamed?
+                    const containsTarget = directory.children.some(
+                        (item) => item.id === fileId,
+                    )
+                    if (containsTarget && hasDuplicate) {
+                        duplicateFound = true
+                        return directory
+                    }
+
                     return {
                         ...directory,
                         children: directory.children.map((item) => {
                             if (item.type === "file" && item.id === fileId) {
-                                return {
-                                    ...item,
-                                    name: newName,
-                                }
-                            } else {
-                                return item
+                                return { ...item, name: newName }
+                            } else if (item.type === "directory") {
+                                return checkAndRename(item)
                             }
+                            return item
                         }),
                     }
-                } else {
-                    return directory
                 }
+                return directory
             }
 
-            setFileStructure((prevFileStructure) =>
-                renameInDirectory(prevFileStructure),
+            const updated = checkAndRename(fileStructure)
+            if (duplicateFound) return false
+
+            setFileStructure(updated)
+
+            setOpenFiles((prev) =>
+                prev.map((f) => (f.id === fileId ? { ...f, name: newName } : f)),
             )
 
-            // Update Open Files
-            setOpenFiles((prevOpenFiles) =>
-                prevOpenFiles.map((file) => {
-                    if (file.id === fileId) {
-                        return {
-                            ...file,
-                            name: newName,
-                        }
-                    } else {
-                        return file
-                    }
-                }),
-            )
-
-            // Update Active File
             if (fileId === activeFile?.id) {
-                setActiveFile((prevActiveFile) => {
-                    if (prevActiveFile) {
-                        return {
-                            ...prevActiveFile,
-                            name: newName,
-                        }
-                    } else {
-                        return null
-                    }
-                })
-            }
-
-            if (!sendToSocket) return true
-            socket.emit(SocketEvent.FILE_RENAMED, {
-                fileId,
-                newName,
-            })
-
-            return true
-        },
-        [activeFile?.id, socket],
-    )
-
-    const deleteFile = useCallback(
-        (fileId: string, sendToSocket: boolean = true) => {
-            // Recursive function to find and delete the file in nested directories
-            const deleteFileFromDirectory = (
-                directory: FileSystemItem,
-            ): FileSystemItem => {
-                if (directory.type === "directory" && directory.children) {
-                    const updatedChildren = directory.children
-                        .map((child) => {
-                            // Recursively process directories
-                            if (child.type === "directory") {
-                                return deleteFileFromDirectory(child)
-                            }
-                            // Filter out the file with matching id
-                            if (child.id !== fileId) {
-                                return child
-                            }
-                            return null
-                        })
-                        .filter((child) => child !== null)
-
-                    // Return updated directory with filtered children
-                    return {
-                        ...directory,
-                        children: updatedChildren as FileSystemItem[],
-                    }
-                } else {
-                    // If it's not a directory or doesn't have children, return as is
-                    return directory
-                }
-            }
-
-            // Update fileStructure with the updated directory structure
-            setFileStructure((prevFileStructure) =>
-                deleteFileFromDirectory(prevFileStructure),
-            )
-
-            // Remove the file from openFiles
-            if (openFiles.some((file) => file.id === fileId)) {
-                setOpenFiles((prevOpenFiles) =>
-                    prevOpenFiles.filter((file) => file.id !== fileId),
+                setActiveFile((prev) =>
+                    prev ? { ...prev, name: newName } : null,
                 )
             }
 
-            // Set the active file to null if it's the file being deleted
-            if (activeFile?.id === fileId) {
-                setActiveFile(null)
+            if (!sendToSocket) return true
+            socket.emit(SocketEvent.FILE_RENAMED, { fileId, newName })
+            return true
+        },
+        [activeFile?.id, fileStructure, socket],
+    )
+
+    // ── deleteFile ────────────────────────────────────────────────────────────
+    const deleteFile = useCallback(
+        (fileId: string, sendToSocket: boolean = true) => {
+            const deleteFromDir = (
+                directory: FileSystemItem,
+            ): FileSystemItem => {
+                if (directory.type === "directory" && directory.children) {
+                    const updated = directory.children
+                        .map((child) => {
+                            if (child.type === "directory") {
+                                return deleteFromDir(child)
+                            }
+                            return child.id !== fileId ? child : null
+                        })
+                        .filter(Boolean) as FileSystemItem[]
+                    return { ...directory, children: updated }
+                }
+                return directory
             }
+
+            setFileStructure((prev) => deleteFromDir(prev))
+
+            if (openFiles.some((f) => f.id === fileId)) {
+                setOpenFiles((prev) => prev.filter((f) => f.id !== fileId))
+            }
+
+            if (activeFile?.id === fileId) setActiveFile(null)
 
             toast.success("File deleted successfully")
 
@@ -603,6 +545,7 @@ function FileContextProvider({ children }: { children: ReactNode }) {
         [activeFile?.id, openFiles, socket],
     )
 
+    // ── downloadFilesAndFolders ───────────────────────────────────────────────
     const downloadFilesAndFolders = () => {
         const zip = new JSZip()
 
@@ -614,44 +557,40 @@ function FileContextProvider({ children }: { children: ReactNode }) {
                 parentPath + item.name + (item.type === "directory" ? "/" : "")
 
             if (item.type === "file") {
-                zip.file(currentPath, item.content || "") // Add file to zip
+                zip.file(currentPath, item.content || "")
             } else if (item.type === "directory" && item.children) {
                 for (const child of item.children) {
-                    downloadRecursive(child, currentPath) // Recursively process children
+                    downloadRecursive(child, currentPath)
                 }
             }
         }
 
-        // Start downloading from the children of the root directory
         if (fileStructure.type === "directory" && fileStructure.children) {
             for (const child of fileStructure.children) {
                 downloadRecursive(child)
             }
         }
 
-        // Generate and save zip file
         zip.generateAsync({ type: "blob" }).then((content) => {
-            saveAs(content, "download.zip")
+            saveAs(content, "project.zip")
         })
     }
+
+    // ── socket handlers ───────────────────────────────────────────────────────
 
     const handleUserJoined = useCallback(
         ({ user }: { user: RemoteUser }) => {
             toast.success(`${user.username} joined the room`)
-
-            // Send the code and drawing data to the server
             socket.emit(SocketEvent.SYNC_FILE_STRUCTURE, {
                 fileStructure,
                 openFiles,
                 activeFile,
                 socketId: user.socketId,
             })
-
             socket.emit(SocketEvent.SYNC_DRAWING, {
                 drawingData,
                 socketId: user.socketId,
             })
-
             setUsers((prev) => [...prev, user])
         },
         [activeFile, drawingData, fileStructure, openFiles, setUsers, socket],
@@ -659,17 +598,17 @@ function FileContextProvider({ children }: { children: ReactNode }) {
 
     const handleFileStructureSync = useCallback(
         ({
-            fileStructure,
-            openFiles,
-            activeFile,
+            fileStructure: fs,
+            openFiles: of_,
+            activeFile: af,
         }: {
             fileStructure: FileSystemItem
             openFiles: FileSystemItem[]
             activeFile: FileSystemItem | null
         }) => {
-            setFileStructure(fileStructure)
-            setOpenFiles(openFiles)
-            setActiveFile(activeFile)
+            setFileStructure(fs)
+            setOpenFiles(of_)
+            setActiveFile(af)
             toast.dismiss()
         },
         [],
@@ -725,7 +664,6 @@ function FileContextProvider({ children }: { children: ReactNode }) {
     const handleFileUpdated = useCallback(
         ({ fileId, newContent }: { fileId: Id; newContent: FileContent }) => {
             updateFileContent(fileId, newContent)
-            // Update the content of the active file if it's the same file
             if (activeFile?.id === fileId) {
                 setActiveFile({ ...activeFile, content: newContent })
             }
@@ -805,6 +743,7 @@ function FileContextProvider({ children }: { children: ReactNode }) {
                 deleteFile,
                 downloadFilesAndFolders,
                 editorViewRef,
+                getFilePath,
             }}
         >
             {children}

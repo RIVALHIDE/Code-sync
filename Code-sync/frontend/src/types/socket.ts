@@ -37,6 +37,14 @@ enum SocketEvent {
     VIDEO_CALL_USER_LEFT = "video-call-user-left",
     VIDEO_CALL_MUTE_TOGGLE = "video-call-mute-toggle",
     VIDEO_CALL_VIDEO_TOGGLE = "video-call-video-toggle",
+    // Collaborative AI Prompt Engineering
+    CO_PROMPT_UPDATE = "co-prompt-update",
+    CO_PROMPT_LINK_CODE = "co-prompt-link-code",
+    CO_PROMPT_UNLINK_CODE = "co-prompt-unlink-code",
+    CO_PROMPT_CURSOR = "co-prompt-cursor",
+    CO_PROMPT_SUBMIT = "co-prompt-submit",
+    CO_PROMPT_RESPONSE = "co-prompt-response",
+    CO_PROMPT_CLEAR = "co-prompt-clear",
 }
 
 interface SocketContext {

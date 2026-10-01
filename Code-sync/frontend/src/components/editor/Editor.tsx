@@ -22,6 +22,7 @@ import toast from "react-hot-toast"
 import { collaborativeHighlighting, updateRemoteUsers } from "./collaborativeHighlighting"
 import { createLintExtension } from "./linting"
 import { createAutocompleteExtension } from "./autocomplete"
+import { useRecording } from "@/context/RecordingContext"
 
 function Editor() {
     const { users, currentUser } = useAppContext()
@@ -29,6 +30,7 @@ function Editor() {
     const { theme, language, fontSize, enableLinting } = useSettings()
     const { socket } = useSocket()
     const { viewHeight } = useResponsive()
+    const { captureEvent, recordingState } = useRecording()
     const [timeOut, setTimeOut] = useState(setTimeout(() => {}, 0))
     const filteredUsers = useMemo(
         () => users.filter((u) => u.username !== currentUser.username),
@@ -38,7 +40,7 @@ function Editor() {
     const editorRef = useRef<any>(null)
     const [lastCursorPosition, setLastCursorPosition] = useState<number>(0)
     const [lastSelection, setLastSelection] = useState<{start?: number, end?: number}>({})
-    const cursorMoveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+    const cursorMoveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
     const onCodeChange = (code: string, view: ViewUpdate) => {
         if (!activeFile) return
@@ -51,6 +53,19 @@ function Editor() {
         const cursorPosition = selection?.head || 0
         const selectionStart = selection?.from
         const selectionEnd = selection?.to
+
+        // Capture keystroke event for session recording
+        if (recordingState === "recording") {
+            captureEvent({
+                type: "content",
+                fileId: activeFile.id,
+                fileName: activeFile.name,
+                content: code,
+                cursorPosition,
+                selectionStart,
+                selectionEnd,
+            })
+        }
 
         // Emit cursor and selection data
         socket.emit(SocketEvent.TYPING_START, {
@@ -147,6 +162,20 @@ function Editor() {
             })
         }
     }, [filteredUsers])
+
+    // Capture file-switch events during recording
+    useEffect(() => {
+        if (recordingState === "recording" && activeFile) {
+            captureEvent({
+                type: "file-switch",
+                fileId: activeFile.id,
+                fileName: activeFile.name,
+                content: activeFile.content ?? "",
+            })
+        }
+    // Only fire when the active file id changes, not on every content update
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [activeFile?.id, recordingState])
 
     return (
         <CodeMirror

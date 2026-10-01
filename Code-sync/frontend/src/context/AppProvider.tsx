@@ -9,6 +9,10 @@ import { ViewContextProvider } from "./ViewContext.js"
 import { CopilotContextProvider } from "./CopilotContext.js"
 import { VideoCallContextProvider } from "./VideoCallContext"
 import { PedagogicalAIContextProvider } from "./PedagogicalAIContext"
+import { RecordingContextProvider } from "./RecordingContext"
+import { CoPromptContextProvider } from "./CoPromptContext"
+import { VoiceContextProvider } from "./VoiceContext"
+import { AnalyticsContextProvider } from "./AnalyticsContext"
 
 function AppProvider({ children }: { children: ReactNode }) {
     return (
@@ -20,11 +24,19 @@ function AppProvider({ children }: { children: ReactNode }) {
                             <CopilotContextProvider>
                                 <RunCodeContextProvider>
                                     <PedagogicalAIContextProvider>
-                                        <ChatContextProvider>
-                                            <VideoCallContextProvider>
-                                                {children}
-                                            </VideoCallContextProvider>
-                                        </ChatContextProvider>
+                                        <RecordingContextProvider>
+                                            <CoPromptContextProvider>
+                                                <VoiceContextProvider>
+                                                    <ChatContextProvider>
+                                                        <VideoCallContextProvider>
+                                                            <AnalyticsContextProvider>
+                                                                {children}
+                                                            </AnalyticsContextProvider>
+                                                        </VideoCallContextProvider>
+                                                    </ChatContextProvider>
+                                                </VoiceContextProvider>
+                                            </CoPromptContextProvider>
+                                        </RecordingContextProvider>
                                     </PedagogicalAIContextProvider>
                                 </RunCodeContextProvider>
                             </CopilotContextProvider>

@@ -77,6 +77,22 @@ function Sidebar() {
                     icon={viewIcons[VIEWS.VIDEO_CALL]}
                 />
                 <SidebarButton
+                    viewName={VIEWS.RECORDINGS}
+                    icon={viewIcons[VIEWS.RECORDINGS]}
+                />
+                <SidebarButton
+                    viewName={VIEWS.CO_PROMPT}
+                    icon={viewIcons[VIEWS.CO_PROMPT]}
+                />
+                <SidebarButton
+                    viewName={VIEWS.VOICE}
+                    icon={viewIcons[VIEWS.VOICE]}
+                />
+                <SidebarButton
+                    viewName={VIEWS.DASHBOARD}
+                    icon={viewIcons[VIEWS.DASHBOARD]}
+                />
+                <SidebarButton
                     viewName={VIEWS.SETTINGS}
                     icon={viewIcons[VIEWS.SETTINGS]}
                 />
