@@ -1,6 +1,6 @@
 /**
  * Voice Command Parser Utility
- * 
+ *
  * Parses voice commands from transcript text and converts them to actual
  * text insertions or special actions (like UNDO).
  */
@@ -14,6 +14,7 @@ import { ParseResult, VoiceAction } from "@/types/voice"
 const COMMAND_MAP: Record<string, string> = {
   "new line": "\n",
   "newline": "\n",
+  "next line": "\n",
   "line break": "\n",
   "tab": "\t",
   "open bracket": "{",
@@ -37,21 +38,9 @@ const ACTION_COMMANDS: Record<string, VoiceAction> = {
 /**
  * Parses voice commands from a transcript string and converts them
  * to text with commands replaced and special actions extracted.
- * 
+ *
  * @param transcript - The raw transcript from speech recognition
  * @returns ParseResult with processed text and actions to execute
- * 
- * @example
- * parseVoiceCommands("function hello new line open bracket close bracket")
- * // Returns: { text: "function hello \n{}", actions: [] }
- * 
- * @example
- * parseVoiceCommands("const x equals 5 semicolon")
- * // Returns: { text: "const x equals 5 ;", actions: [] }
- * 
- * @example
- * parseVoiceCommands("undo")
- * // Returns: { text: "", actions: ["UNDO"] }
  */
 export function parseVoiceCommands(transcript: string): ParseResult {
   // Handle empty or whitespace-only input
@@ -59,7 +48,6 @@ export function parseVoiceCommands(transcript: string): ParseResult {
     return { text: "", actions: [] }
   }
 
-  // Convert to lowercase for case-insensitive matching
   let processedText = transcript.trim()
   const actions: VoiceAction[] = []
 
@@ -78,13 +66,15 @@ export function parseVoiceCommands(transcript: string): ParseResult {
   // Then, replace text commands with their corresponding characters
   for (const [command, replacement] of Object.entries(COMMAND_MAP)) {
     // Use word boundaries to match complete command phrases
-    // The 'gi' flags make it case-insensitive and global
     const regex = new RegExp(`\\b${escapeRegex(command)}\\b`, "gi")
     processedText = processedText.replace(regex, replacement)
   }
 
-  // Clean up any multiple spaces that might have been created
-  processedText = processedText.replace(/\s+/g, " ").trim()
+  // Clean up extra spaces, but KEEP new lines and tabs
+  processedText = processedText
+    .replace(/ *\n */g, "\n") // remove spaces around new lines
+    .replace(/ {2,}/g, " ") // collapse multiple spaces
+    .replace(/^ +| +$/g, "") // trim spaces at start and end
 
   return {
     text: processedText,
