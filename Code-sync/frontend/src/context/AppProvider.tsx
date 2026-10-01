@@ -11,6 +11,8 @@ import { VideoCallContextProvider } from "./VideoCallContext"
 import { PedagogicalAIContextProvider } from "./PedagogicalAIContext"
 import { RecordingContextProvider } from "./RecordingContext"
 import { CoPromptContextProvider } from "./CoPromptContext"
+import { VoiceContextProvider } from "./VoiceContext"
+import { AnalyticsContextProvider } from "./AnalyticsContext"
 
 function AppProvider({ children }: { children: ReactNode }) {
     return (
@@ -24,11 +26,15 @@ function AppProvider({ children }: { children: ReactNode }) {
                                     <PedagogicalAIContextProvider>
                                         <RecordingContextProvider>
                                             <CoPromptContextProvider>
-                                                <ChatContextProvider>
-                                                    <VideoCallContextProvider>
-                                                        {children}
-                                                    </VideoCallContextProvider>
-                                                </ChatContextProvider>
+                                                <VoiceContextProvider>
+                                                    <ChatContextProvider>
+                                                        <VideoCallContextProvider>
+                                                            <AnalyticsContextProvider>
+                                                                {children}
+                                                            </AnalyticsContextProvider>
+                                                        </VideoCallContextProvider>
+                                                    </ChatContextProvider>
+                                                </VoiceContextProvider>
                                             </CoPromptContextProvider>
                                         </RecordingContextProvider>
                                     </PedagogicalAIContextProvider>

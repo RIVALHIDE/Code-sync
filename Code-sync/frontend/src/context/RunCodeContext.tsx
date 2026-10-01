@@ -10,6 +10,28 @@ import {
 } from "react"
 import toast from "react-hot-toast"
 import { useFileSystem } from "./FileContext"
+import { useAppContext } from "./AppContext"
+
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:3000"
+
+async function postRunAnalytics(
+    roomId: string,
+    username: string,
+    language: string,
+    fileName: string,
+    success: boolean,
+    errorText?: string,
+) {
+    try {
+        await fetch(`${BACKEND_URL}/api/analytics/run`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ roomId, username, language, fileName, success, errorText }),
+        })
+    } catch {
+        // analytics are non-critical — silent failure
+    }
+}
 
 const RunCodeContext = createContext<RunContextType | null>(null)
 
@@ -25,6 +47,7 @@ export const useRunCode = () => {
 
 const RunCodeContextProvider = ({ children }: { children: ReactNode }) => {
     const { activeFile } = useFileSystem()
+    const { currentUser } = useAppContext()
     const [input, setInput] = useState<string>("")
     const [output, setOutput] = useState<string>("")
     const [isRunning, setIsRunning] = useState<boolean>(false)
@@ -86,8 +109,23 @@ const RunCodeContextProvider = ({ children }: { children: ReactNode }) => {
             })
             if (response.data.run.stderr) {
                 setOutput(response.data.run.stderr)
+                await postRunAnalytics(
+                    currentUser.roomId,
+                    currentUser.username,
+                    language,
+                    activeFile.name,
+                    false,
+                    response.data.run.stderr,
+                )
             } else {
                 setOutput(response.data.run.stdout)
+                await postRunAnalytics(
+                    currentUser.roomId,
+                    currentUser.username,
+                    language,
+                    activeFile.name,
+                    true,
+                )
             }
             setIsRunning(false)
             toast.dismiss()
@@ -97,6 +135,17 @@ const RunCodeContextProvider = ({ children }: { children: ReactNode }) => {
             setIsRunning(false)
             toast.dismiss()
             toast.error("Failed to run the code")
+            // record a failed run even when the executor itself throws
+            if (activeFile && selectedLanguage.language) {
+                await postRunAnalytics(
+                    currentUser.roomId,
+                    currentUser.username,
+                    selectedLanguage.language,
+                    activeFile.name,
+                    false,
+                    error?.response?.data?.error ?? "Executor error",
+                )
+            }
         }
     }
 

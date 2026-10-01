@@ -40,7 +40,7 @@ function Editor() {
     const editorRef = useRef<any>(null)
     const [lastCursorPosition, setLastCursorPosition] = useState<number>(0)
     const [lastSelection, setLastSelection] = useState<{start?: number, end?: number}>({})
-    const cursorMoveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+    const cursorMoveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
     const onCodeChange = (code: string, view: ViewUpdate) => {
         if (!activeFile) return

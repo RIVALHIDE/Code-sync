@@ -9,6 +9,10 @@ interface FileSystemItem {
     children?: FileSystemItem[]
     content?: FileContent
     isOpen?: boolean
+    /** True when content has changed since last sync / save */
+    isDirty?: boolean
+    /** Remembered CodeMirror language name for this file (set on open) */
+    language?: string
 }
 
 interface FileContext {
@@ -29,6 +33,8 @@ interface FileContext {
     renameFile: (fileId: Id, newName: FileName) => boolean
     deleteFile: (fileId: Id) => void
     downloadFilesAndFolders: () => void
+    /** Returns the full path of a file, e.g. "src/utils/file.ts" */
+    getFilePath: (fileId: Id) => string
 }
 
 export { FileSystemItem, FileContent, FileContext, Id, FileName }

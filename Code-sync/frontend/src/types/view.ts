@@ -8,6 +8,8 @@ enum VIEWS {
     VIDEO_CALL = "VIDEO_CALL",
     RECORDINGS = "RECORDINGS",
     CO_PROMPT = "CO_PROMPT",
+    VOICE = "VOICE",
+    DASHBOARD = "DASHBOARD",
 }
 
 interface ViewContext {

@@ -6,6 +6,15 @@ import { SocketEvent, SocketId } from "./types/socket"
 import { USER_CONNECTION_STATUS, User } from "./types/user"
 import { Server } from "socket.io"
 import path from "path"
+import {
+	recordSessionStart,
+	recordSessionEnd,
+	recordCodeRun,
+	recordMilestone,
+	getRoomSummary,
+	getAllRoomIds,
+	getRoomTimeSeries,
+} from "./analytics/queries"
 
 dotenv.config()
 
@@ -84,12 +93,18 @@ io.on("connection", (socket) => {
 		socket.broadcast.to(roomId).emit(SocketEvent.USER_JOINED, { user })
 		const users = getUsersInRoom(roomId)
 		io.to(socket.id).emit(SocketEvent.JOIN_ACCEPTED, { user, users })
+
+		// Analytics: record session start
+		recordSessionStart(roomId, username)
 	})
 
 	socket.on("disconnecting", () => {
 		const user = getUserBySocketId(socket.id)
 		if (!user) return
 		const roomId = user.roomId
+
+		// Analytics: record session end
+		recordSessionEnd(roomId, user.username)
 
 		// Clean up video call participation
 		const callParticipants = activeCallParticipants.get(roomId)
@@ -168,6 +183,9 @@ io.on("connection", (socket) => {
 		socket.broadcast
 			.to(roomId)
 			.emit(SocketEvent.FILE_CREATED, { parentDirId, newFile })
+		// Analytics: file created milestone
+		const user = getUserBySocketId(socket.id)
+		if (user) recordMilestone(roomId, user.username, "file_created", { fileName: newFile?.name })
 	})
 
 	socket.on(SocketEvent.FILE_UPDATED, ({ fileId, newContent }) => {
@@ -226,6 +244,9 @@ io.on("connection", (socket) => {
 		socket.broadcast
 			.to(roomId)
 			.emit(SocketEvent.RECEIVE_MESSAGE, { message })
+		// Analytics: chat message milestone
+		const user = getUserBySocketId(socket.id)
+		if (user) recordMilestone(roomId, user.username, "chat_message")
 	})
 
 	// Handle cursor position and selection
@@ -300,6 +321,9 @@ io.on("connection", (socket) => {
 		socket.broadcast.to(roomId).emit(SocketEvent.DRAWING_UPDATE, {
 			snapshot,
 		})
+		// Analytics: drawing milestone
+		const user = getUserBySocketId(socket.id)
+		if (user) recordMilestone(roomId, user.username, "drawing")
 	})
 
 	// ── Collaborative AI Prompt Engineering ──────────────────────────────────
@@ -331,6 +355,9 @@ io.on("connection", (socket) => {
 		const roomId = getRoomId(socket.id)
 		if (!roomId) return
 		socket.broadcast.to(roomId).emit(SocketEvent.CO_PROMPT_SUBMIT, { submittedBy })
+		// Analytics: AI prompt milestone
+		const user = getUserBySocketId(socket.id)
+		if (user) recordMilestone(roomId, user.username, "ai_prompt")
 	})
 
 	socket.on(SocketEvent.CO_PROMPT_RESPONSE, ({ response, entry }) => {
@@ -566,4 +593,56 @@ app.post("/api/ai/chat", async (req: Request, res: Response) => {
 
 server.listen(PORT, () => {
 	console.log(`Listening on port ${PORT}`)
+})
+
+// ── Analytics REST API ─────────────────────────────────────────────────────────
+
+// POST /api/analytics/run — called by frontend after each code execution
+app.post("/api/analytics/run", (req: Request, res: Response) => {
+	try {
+		const { roomId, username, language, fileName, success, errorText } = req.body
+		if (!roomId || !username || !language || !fileName) {
+			res.status(400).json({ error: "roomId, username, language, fileName required" })
+			return
+		}
+		recordCodeRun(roomId, username, language, fileName, !!success, errorText)
+		res.json({ ok: true })
+	} catch (err) {
+		console.error("[analytics] POST /run error:", err)
+		res.status(500).json({ error: "Failed to record run" })
+	}
+})
+
+// GET /api/analytics/rooms — list all room IDs that have data
+app.get("/api/analytics/rooms", (_req: Request, res: Response) => {
+	try {
+		res.json({ rooms: getAllRoomIds() })
+	} catch (err) {
+		console.error("[analytics] GET /rooms error:", err)
+		res.status(500).json({ error: "Failed to fetch rooms" })
+	}
+})
+
+// GET /api/analytics/rooms/:roomId — full dashboard data for one room
+app.get("/api/analytics/rooms/:roomId", (req: Request, res: Response) => {
+	try {
+		const { roomId } = req.params
+		const summary = getRoomSummary(roomId)
+		res.json(summary)
+	} catch (err) {
+		console.error("[analytics] GET /rooms/:roomId error:", err)
+		res.status(500).json({ error: "Failed to fetch room analytics" })
+	}
+})
+
+// GET /api/analytics/rooms/:roomId/timeseries — bucketed activity data for charts
+app.get("/api/analytics/rooms/:roomId/timeseries", (req: Request, res: Response) => {
+	try {
+		const { roomId } = req.params
+		const payload = getRoomTimeSeries(roomId)
+		res.json(payload)
+	} catch (err) {
+		console.error("[analytics] GET /rooms/:roomId/timeseries error:", err)
+		res.status(500).json({ error: "Failed to fetch timeseries" })
+	}
 })
